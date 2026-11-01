@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 import { config } from "dotenv";
+import { e2eDatabaseUrl } from "./e2e/database-url";
 
 if (existsSync(".env.local")) config({ path: ".env.local", quiet: true });
 
@@ -9,7 +10,9 @@ const isCI = Boolean(process.env.CI);
 
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false,
+  workers: 1,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
   reporter: isCI ? [["list"], ["html", { open: "never" }]] : "list",
@@ -22,9 +25,9 @@ export default defineConfig({
     // CI tests the production build; locally the dev server is quicker to iterate on.
     command: isCI ? `npm run start -- --port ${PORT}` : `npm run dev -- --port ${PORT}`,
     url: `http://localhost:${PORT}/login`,
-    reuseExistingServer: !isCI,
+    reuseExistingServer: false,
     timeout: 120_000,
-    // The model is always mocked in end-to-end runs.
-    env: { LLM_PROVIDER: "mock" },
+    // Own database, and the model is always mocked.
+    env: { DATABASE_URL: e2eDatabaseUrl(), LLM_PROVIDER: "mock" },
   },
 });
