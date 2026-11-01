@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers";
 
+// The demo is approved and studied in place, so a retry would find an empty queue.
+// Regenerate the images by running this spec alone against a fresh e2e database.
+test.describe.configure({ retries: 0 });
+
 test("capture public demo review and dashboard visuals", async ({ page }, testInfo) => {
   test.slow();
   await page.setViewportSize({ width: 1200, height: 800 });
@@ -52,6 +56,7 @@ test("capture public demo review and dashboard visuals", async ({ page }, testIn
 
   await page.goto("/dashboard");
   await expect(page.getByText("1 day", { exact: true })).toBeVisible();
+  await expect(page.getByRole("progressbar", { name: "Swift value and reference semantics established" })).toHaveAttribute("max", "4");
   // Handshake requires a 3:2 dashboard cover at least 1,200 px wide.
   await page.screenshot({ path: testInfo.outputPath("dashboard-demo.png") });
 });

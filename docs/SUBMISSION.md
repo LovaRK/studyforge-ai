@@ -12,15 +12,15 @@ Add the private Replit deployment URL after completing every check in `docs/DEPL
 
 ## Preview image
 
-`docs/screenshots/dashboard-demo.png` is exactly 1200 × 800 pixels (3:2) and contains only original demo data: the demo note approved, studied once as flashcards and answered once as a quiz round (`e2e/visuals.spec.ts` regenerates it).
+`docs/screenshots/dashboard-demo.png` is exactly 1200 × 800 pixels (3:2) and contains only original demo data: the demo note approved, studied once as flashcards and answered once as a quiz round. To regenerate it, run `e2e/visuals.spec.ts` on its own against a fresh e2e database (in a full run the dashboard also shows other specs' data), then copy `dashboard-demo.png` and `review-demo.png` from its `test-results` output folder into `docs/screenshots/`.
 
 ## Description
 
-**Draft for the owner to rewrite. Not submitted.** Handshake asks what material the guide was built from and what you are most proud of, and the submission must describe your own experience. The text below covers only what the app does. Add your own observation after you have worked through the review queue with your real notes, then recount the characters.
+**Draft for the owner to rewrite. Not submitted.** Handshake asks what material the guide was built from and what you are most proud of, and the submission must describe your own experience. Only the middle sentence is suggested wording, and it covers only what the app does. Fill in the bracketed parts in your own words after you have worked through the review queue with your real notes, then recount the characters.
 
-> I built StudyForge AI from my iOS interview notes. I’m most proud of its evidence-first review flow: every generated concept, card and question keeps the exact source excerpt, is rejected if that quote cannot be found in the notes, and waits for my approval before I study it. [Your own sentence: what you noticed comparing the cards with your notes.]
+> [Your own sentence: what material you built the guide from.] In StudyForge AI, every generated concept, card and question keeps the exact source excerpt, is rejected if that quote cannot be found in the notes, and waits for approval before it is studied. [Your own sentence: what you are most proud of and what you noticed comparing the cards with your notes.]
 
-Character count without the bracketed part: 276 (maximum 500), which leaves about 223 characters for your sentence.
+Character count of the suggested sentence: 193 (maximum 500 for the whole description), which leaves about 305 characters for your two sentences.
 
 ## Showcase
 
