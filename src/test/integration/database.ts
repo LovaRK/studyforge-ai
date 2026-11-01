@@ -30,7 +30,7 @@ export function connect(url = testDatabaseUrl()) {
 /** Empties every application table. */
 export async function truncateAll(db: Database): Promise<void> {
   await db.execute(
-    sql`truncate table review_events, item_excerpts, items, rejected_extractions, llm_cache, chunks, sources, owner_credential restart identity cascade`,
+    sql`truncate table card_reviews, quiz_attempts, quiz_questions, study_sessions, srs_cards, item_search, review_events, item_excerpts, items, rejected_extractions, llm_cache, chunks, sources, owner_credential restart identity cascade`,
   );
 }
 
