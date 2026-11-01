@@ -1,6 +1,8 @@
 import "server-only";
 import { makeLogin } from "@/application/auth/login";
 import { ensureOwnerCredential } from "@/application/auth/owner-credential";
+import { ExtractionRunner } from "@/application/extraction/extraction-runner";
+import { makeReview } from "@/application/review/review";
 import { getEnv } from "@/config/env";
 import { DrizzleOwnerCredentialStore } from "@/infrastructure/auth/drizzle-owner-credential-store";
 import { MemoryLoginRateLimiter } from "@/infrastructure/auth/memory-rate-limiter";
@@ -8,6 +10,11 @@ import { ScryptPasswordHasher } from "@/infrastructure/auth/scrypt-password-hash
 import { HmacSessionIssuer } from "@/infrastructure/auth/session-token";
 import { getDb } from "@/infrastructure/db/client";
 import { createLlmProvider } from "@/infrastructure/llm/factory";
+import { logger } from "@/infrastructure/logging/logger";
+import { DrizzleExtractionStore, DrizzleLlmCache } from "@/infrastructure/repositories/drizzle-extraction-store";
+import { DrizzleReviewStore } from "@/infrastructure/repositories/drizzle-review-store";
+import { DrizzleSourceStore } from "@/infrastructure/repositories/drizzle-source-store";
+import { DocumentTextExtractor } from "@/infrastructure/text/document-text-extractor";
 
 /** Composition root: the only place that wires infrastructure into use cases. */
 function build() {
@@ -17,10 +24,29 @@ function build() {
   const hasher = new ScryptPasswordHasher();
   const credentialDeps = { store, hasher, ownerPassword: env.OWNER_PASSWORD };
 
+  const llm = createLlmProvider(env);
+  const sources = new DrizzleSourceStore(db);
+  const extraction = new DrizzleExtractionStore(db);
+  const reviewStore = new DrizzleReviewStore(db);
+
   return {
     env,
     db,
-    llm: createLlmProvider(env),
+    llm,
+    sources,
+    extraction,
+    reviewStore,
+    review: makeReview(reviewStore),
+    textExtractor: new DocumentTextExtractor(),
+    extractionRunner: new ExtractionRunner({
+      sources,
+      store: extraction,
+      cache: new DrizzleLlmCache(db),
+      llm,
+      model: env.LLM_PROVIDER === "gemini" ? env.GEMINI_MODEL! : "mock",
+      logger: logger.child({ component: "extraction" }),
+      options: { requestsPerMinute: env.LLM_REQUESTS_PER_MINUTE ?? (env.LLM_PROVIDER === "mock" ? 0 : 10) },
+    }),
     ensureOwnerCredential: () => ensureOwnerCredential(credentialDeps),
     login: makeLogin({
       ...credentialDeps,
