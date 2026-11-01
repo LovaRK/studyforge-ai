@@ -2,7 +2,7 @@
 
 A private, source-grounded study guide. Upload your own notes, let an LLM propose concepts, terms, how-tos and questions, then approve each one next to the exact source excerpt it came from before it reaches your library.
 
-> **Status:** upload, extraction, the word-for-word check and the review queue work end to end. The library, flashcards, quizzes and dashboard are next.
+> **Status:** upload, extraction, the word-for-word check, the review queue and the searchable library work end to end. Concept pages, flashcards, quizzes and the dashboard are next.
 
 ## How it works
 
@@ -10,7 +10,8 @@ A private, source-grounded study guide. Upload your own notes, let an LLM propos
 2. **Chunk** it by heading or Q&A pair (about 1,500 words per chunk), so each model call stays small.
 3. **Extract** with Gemini: concepts, terms, systems, processes, how-tos and questions to investigate. Each item carries an `excerpt` the model must copy word for word. Chunks run in a background queue that is throttled for the free tier, backs off exponentially on `429`s, caches responses by chunk hash and can resume after a restart.
 4. **Check** every excerpt against the source (below). Items that fail never reach the queue; they are counted on a "Rejected: excerpt not found" panel.
-5. **Review** each item beside its excerpt highlighted in the source: approve, edit inline, tag, merge (keeping every excerpt) or discard, one at a time or in bulk, with keyboard shortcuts. Only approved items will reach the library.
+5. **Review** each item beside its excerpt highlighted in the source: approve, edit inline, tag, merge (keeping every excerpt) or discard, one at a time or in bulk, with keyboard shortcuts. Only approved items reach the library.
+6. **Find** anything in the library: approved items grouped by type, filtered by tag or source, with Postgres full-text search over titles, tags, the generated wording and the excerpts. Each word may be a prefix ("concur" finds "concurrency"), titles rank above excerpt-only matches, and matches are marked inside the full, untrimmed excerpt. The search document is written in the same transaction as the approval, by one SQL function (`item_search_document`) that the migration also uses to backfill.
 
 ## The word-for-word check
 

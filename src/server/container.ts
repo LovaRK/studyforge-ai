@@ -2,6 +2,7 @@ import "server-only";
 import { makeLogin } from "@/application/auth/login";
 import { ensureOwnerCredential } from "@/application/auth/owner-credential";
 import { ExtractionRunner } from "@/application/extraction/extraction-runner";
+import { makeLibrary } from "@/application/library/library";
 import { makeReview } from "@/application/review/review";
 import { getEnv } from "@/config/env";
 import { DrizzleOwnerCredentialStore } from "@/infrastructure/auth/drizzle-owner-credential-store";
@@ -12,6 +13,7 @@ import { getDb } from "@/infrastructure/db/client";
 import { createLlmProvider } from "@/infrastructure/llm/factory";
 import { logger } from "@/infrastructure/logging/logger";
 import { DrizzleExtractionStore, DrizzleLlmCache } from "@/infrastructure/repositories/drizzle-extraction-store";
+import { DrizzleLibraryStore } from "@/infrastructure/repositories/drizzle-library-store";
 import { DrizzleReviewStore } from "@/infrastructure/repositories/drizzle-review-store";
 import { DrizzleSourceStore } from "@/infrastructure/repositories/drizzle-source-store";
 import { DocumentTextExtractor } from "@/infrastructure/text/document-text-extractor";
@@ -37,6 +39,7 @@ function build() {
     extraction,
     reviewStore,
     review: makeReview(reviewStore),
+    library: makeLibrary(new DrizzleLibraryStore(db)),
     textExtractor: new DocumentTextExtractor(),
     extractionRunner: new ExtractionRunner({
       sources,
