@@ -3,6 +3,7 @@ import { ItemNotPendingError, type ItemView, type MergeCandidate, type QueueFilt
 import type { GeneratedFields, ReviewAction } from "@/domain/items/item";
 import type { Database } from "@/infrastructure/db/client";
 import { itemExcerpts, items, reviewEvents, sources } from "@/infrastructure/db/schema";
+import { indexApprovedItems } from "./item-search-index";
 
 export class DrizzleReviewStore implements ReviewStore {
   constructor(private readonly db: Database) {}
@@ -95,7 +96,14 @@ export class DrizzleReviewStore implements ReviewStore {
         .set({ status, reviewedAt: new Date() })
         .where(and(inArray(items.id, ids), eq(items.status, "pending")))
         .returning({ id: items.id });
-      if (changed.length > 0) await tx.insert(reviewEvents).values(changed.map(({ id }) => ({ itemId: id, action })));
+      if (changed.length === 0) return [];
+      await tx.insert(reviewEvents).values(changed.map(({ id }) => ({ itemId: id, action })));
+      // An approved item is searchable as soon as the approval commits.
+      if (status === "approved")
+        await indexApprovedItems(
+          tx,
+          changed.map(({ id }) => id),
+        );
       return changed.map(({ id }) => id);
     });
   }
