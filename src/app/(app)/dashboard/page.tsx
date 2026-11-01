@@ -75,7 +75,7 @@ export default async function DashboardPage() {
         {[
           ["Approved ideas", d.approved, `${d.established} established`],
           ["Due now", d.due, `${d.newCards} new cards included`],
-          ["Study streak", `${d.streak} days`, "Calendar days · UTC"],
+          ["Study streak", `${d.streak} ${d.streak === 1 ? "day" : "days"}`, "Calendar days · UTC"],
           ["Quiz accuracy", d.accuracy === null ? "—" : `${d.accuracy}%`, `${d.quizAnswers} recorded answers`],
         ].map(([label, value, note]) => (
           <div key={label} className="rounded-2xl border border-line bg-surface p-5">
