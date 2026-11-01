@@ -5,7 +5,8 @@ import { e2eDatabaseUrl } from "./e2e/database-url";
 
 if (existsSync(".env.local")) config({ path: ".env.local", quiet: true });
 
-const PORT = 3100;
+// Override per worktree so two workers can run e2e at the same time.
+const PORT = Number(process.env.E2E_PORT ?? 3100);
 const isCI = Boolean(process.env.CI);
 
 export default defineConfig({
