@@ -24,7 +24,10 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
 /** Marks text as the model's wording, never as fact. */
 export function GeneratedLabel() {
   return (
-    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted" title="Written by the model. Check it against the source fact.">
+    <span
+      className="text-[11px] font-semibold uppercase tracking-wide text-muted"
+      title="Written by the model. Check it against the source fact."
+    >
       Generated interpretation
     </span>
   );
@@ -33,7 +36,10 @@ export function GeneratedLabel() {
 /** Marks text as a verbatim quote from the owner's source. */
 export function SourceFactLabel() {
   return (
-    <span className="text-[11px] font-semibold uppercase tracking-wide text-accent" title="Copied word for word from the source and verified.">
+    <span
+      className="text-[11px] font-semibold uppercase tracking-wide text-accent"
+      title="Copied word for word from the source and verified."
+    >
       Source fact
     </span>
   );

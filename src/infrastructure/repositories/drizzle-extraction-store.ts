@@ -75,7 +75,14 @@ export class DrizzleExtractionStore implements ExtractionStore {
       .from(rejectedExtractions)
       .where(eq(rejectedExtractions.sourceId, sourceId))
       .orderBy(desc(rejectedExtractions.createdAt));
-    return rows.map((r) => ({ id: r.id, type: r.type, title: r.title, excerpt: r.excerpt, reason: "excerpt_not_found", createdAt: r.createdAt }));
+    return rows.map((r) => ({
+      id: r.id,
+      type: r.type,
+      title: r.title,
+      excerpt: r.excerpt,
+      reason: "excerpt_not_found",
+      createdAt: r.createdAt,
+    }));
   }
 }
 

@@ -78,7 +78,9 @@ test("a PDF upload is turned into text on the server", async ({ page }) => {
 
   await signIn(page);
   await page.goto("/sources");
-  await page.getByLabel("File").setInputFiles({ name: "optionals.pdf", mimeType: "application/pdf", buffer: Buffer.from(await pdf.save()) });
+  await page
+    .getByLabel("File")
+    .setInputFiles({ name: "optionals.pdf", mimeType: "application/pdf", buffer: Buffer.from(await pdf.save()) });
   await page.getByRole("button", { name: "Upload" }).click();
   await expect(page.getByRole("heading", { name: "optionals" })).toBeVisible();
   await page.getByText("Extracted text").click();
@@ -88,7 +90,9 @@ test("a PDF upload is turned into text on the server", async ({ page }) => {
 test("upload rejects unsupported files", async ({ page }) => {
   await signIn(page);
   await page.goto("/sources");
-  await page.getByLabel("File").setInputFiles({ name: "slides.pptx", mimeType: "application/octet-stream", buffer: Buffer.from("not text") });
+  await page
+    .getByLabel("File")
+    .setInputFiles({ name: "slides.pptx", mimeType: "application/octet-stream", buffer: Buffer.from("not text") });
   await page.getByRole("button", { name: "Upload" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Upload a PDF" })).toBeVisible();
 });

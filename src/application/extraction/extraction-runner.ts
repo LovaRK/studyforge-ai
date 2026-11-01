@@ -2,7 +2,13 @@ import { createHash } from "node:crypto";
 import { LlmRateLimitError, type LlmProvider } from "@/application/ports/llm";
 import type { ChunkRecord, ExtractionStore, LlmCache, SourceRecord, SourceStore } from "@/application/ports/study";
 import type { Logger } from "@/application/ports/logger";
-import { buildExtractionPrompt, EXTRACTION_PROMPT_VERSION, EXTRACTION_SYSTEM_PROMPT, extractionResponseSchema, type ExtractedItem } from "./prompt";
+import {
+  buildExtractionPrompt,
+  EXTRACTION_PROMPT_VERSION,
+  EXTRACTION_SYSTEM_PROMPT,
+  extractionResponseSchema,
+  type ExtractedItem,
+} from "./prompt";
 import { verifyExtractedItems } from "./verify-items";
 
 export interface ExtractionRunnerOptions {
@@ -113,7 +119,12 @@ export class ExtractionRunner {
 
     const { verified, rejected } = verifyExtractedItems(items, source, chunk);
     await this.deps.store.saveChunkResult(chunk, verified, rejected);
-    this.deps.logger.info("chunk extracted", { sourceId: source.id, chunk: chunk.ordinal, verified: verified.length, rejected: rejected.length });
+    this.deps.logger.info("chunk extracted", {
+      sourceId: source.id,
+      chunk: chunk.ordinal,
+      verified: verified.length,
+      rejected: rejected.length,
+    });
   }
 
   private async callWithBackoff<T>(call: () => Promise<T>): Promise<T> {

@@ -13,7 +13,14 @@ export function UploadForm() {
         <label htmlFor="file" className="block text-sm font-medium">
           File
         </label>
-        <input id="file" name="file" type="file" required accept=".pdf,.md,.markdown,.txt,application/pdf,text/plain,text/markdown" className="block w-full text-sm" />
+        <input
+          id="file"
+          name="file"
+          type="file"
+          required
+          accept=".pdf,.md,.markdown,.txt,application/pdf,text/plain,text/markdown"
+          className="block w-full text-sm"
+        />
         <p className="text-xs text-muted">PDF, Markdown or text, up to 10 MB. Only upload material you are allowed to use.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">

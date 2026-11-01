@@ -13,7 +13,10 @@ const file = (text: string, name = "notes.md") => ({ name, mimeType: "text/markd
 describe("importSource", () => {
   it("stores cleaned text with chunks whose offsets point into it", async () => {
     const db = new InMemoryStudyDb();
-    const source = await importSource({ sources: db, extractor: textExtractor, maxWordsPerChunk: 8 }, { file: file("# A\r\none two three four\r\n\r\n\r\n# B\nfive six seven eight") });
+    const source = await importSource(
+      { sources: db, extractor: textExtractor, maxWordsPerChunk: 8 },
+      { file: file("# A\r\none two three four\r\n\r\n\r\n# B\nfive six seven eight") },
+    );
 
     expect(source.title).toBe("notes");
     expect(source.text).toBe("# A\none two three four\n\n# B\nfive six seven eight");
@@ -23,7 +26,10 @@ describe("importSource", () => {
 
   it("keeps the given title and attribution", async () => {
     const db = new InMemoryStudyDb();
-    const source = await importSource({ sources: db, extractor: textExtractor }, { file: file("Some notes here."), title: " Swift ", attribution: "Intern Labs" });
+    const source = await importSource(
+      { sources: db, extractor: textExtractor },
+      { file: file("Some notes here."), title: " Swift ", attribution: "Intern Labs" },
+    );
     expect(source).toMatchObject({ title: "Swift", attribution: "Intern Labs" });
   });
 

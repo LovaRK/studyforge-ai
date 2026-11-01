@@ -38,11 +38,11 @@ const REPLACEMENTS: Record<string, string> = {
   "—": "-",
   "−": "-",
   "…": "...",
-  "ﬀ": "ff",
-  "ﬁ": "fi",
-  "ﬂ": "fl",
-  "ﬃ": "ffi",
-  "ﬄ": "ffl",
+  ﬀ: "ff",
+  ﬁ: "fi",
+  ﬂ: "fl",
+  ﬃ: "ffi",
+  ﬄ: "ffl",
 };
 
 /** Characters dropped on both sides: soft hyphen, markdown code ticks, bullet glyphs. */

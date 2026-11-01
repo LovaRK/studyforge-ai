@@ -69,14 +69,14 @@ CI runs lint, typecheck, unit tests, integration tests, a production build and t
 
 ## Environment variables
 
-| Name | Purpose |
-|---|---|
-| `DATABASE_URL` | Postgres connection string |
-| `OWNER_PASSWORD` | The single owner's sign-in password |
-| `SESSION_SECRET` | ≥ 32 random characters for signing session cookies |
-| `LLM_PROVIDER` | `gemini` (default) or `mock` |
-| `GEMINI_API_KEY` | Google AI Studio key (free tier) |
-| `GEMINI_MODEL` | A Flash / Flash-Lite model, e.g. `gemini-3.5-flash-lite` |
+| Name                      | Purpose                                                         |
+| ------------------------- | --------------------------------------------------------------- |
+| `DATABASE_URL`            | Postgres connection string                                      |
+| `OWNER_PASSWORD`          | The single owner's sign-in password                             |
+| `SESSION_SECRET`          | ≥ 32 random characters for signing session cookies              |
+| `LLM_PROVIDER`            | `gemini` (default) or `mock`                                    |
+| `GEMINI_API_KEY`          | Google AI Studio key (free tier)                                |
+| `GEMINI_MODEL`            | A Flash / Flash-Lite model, e.g. `gemini-3.5-flash-lite`        |
 | `LLM_REQUESTS_PER_MINUTE` | Optional. Spacing for model calls (default 10; 0 with the mock) |
 
 ## License

@@ -30,8 +30,8 @@ export default async function SourcesPage() {
                   {s.attribution && <span className="block text-xs text-muted">Source: {s.attribution}</span>}
                 </span>
                 <span className="text-sm text-muted tabular-nums">
-                  {s.wordCount.toLocaleString()} words · {s.doneChunks}/{s.totalChunks} chunks · {s.pendingItems} to review · {s.approvedItems} approved ·{" "}
-                  {s.rejectedItems} rejected
+                  {s.wordCount.toLocaleString()} words · {s.doneChunks}/{s.totalChunks} chunks · {s.pendingItems} to review ·{" "}
+                  {s.approvedItems} approved · {s.rejectedItems} rejected
                 </span>
               </Link>
             </li>
