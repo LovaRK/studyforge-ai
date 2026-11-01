@@ -20,6 +20,10 @@ A private, source-grounded study guide. Upload your own notes, let an LLM propos
 
 The **Dashboard** tracks mastery by tag and source, due and new cards, UTC study streaks, quiz accuracy, review decisions and excerpt rejection rate. An established card means at least two consecutive successful SM-2 reviews; this is a scheduling signal, not a claim of expertise. Empty metrics are explicit, and extraction totals remain stable after merges.
 
+## Demo
+
+Choose **Load original demo note** on the dashboard, or run `npm run seed:demo`. It imports the redistributable note in `demo/swift-value-semantics.md`, runs the same chunking, mock extraction and word-for-word verification as an upload, and leaves verified items pending for the owner to review. Loading it again resumes or returns the same source, including under concurrent requests.
+
 ## Quizzes
 
 Open **Quiz** to practice approved items, optionally selected by tag or source. Each question offers up to four distinct answers reused from reviewed items. All options are labelled **Generated interpretation**; correctness and source excerpts are revealed only after answering. A round visits each item once and records its first submitted answer, including concurrent double clicks. At least two distinct approved answers are needed in the selection.

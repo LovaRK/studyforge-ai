@@ -1,4 +1,6 @@
 import "server-only";
+import { makeDemoLoader } from "@/application/demo/load-demo";
+import { DEMO_NOTE } from "@/application/demo/note";
 import { makeDashboard } from "@/application/dashboard/dashboard";
 import { DrizzleDashboardStore } from "@/infrastructure/repositories/drizzle-dashboard-store";
 import { makeQuiz } from "@/application/quiz/quiz";
@@ -18,7 +20,10 @@ import { ScryptPasswordHasher } from "@/infrastructure/auth/scrypt-password-hash
 import { HmacSessionIssuer } from "@/infrastructure/auth/session-token";
 import { getDb } from "@/infrastructure/db/client";
 import { createLlmProvider } from "@/infrastructure/llm/factory";
+import { demoResponder } from "@/infrastructure/llm/demo-responder";
+import { MockLlmProvider } from "@/infrastructure/llm/mock-provider";
 import { logger } from "@/infrastructure/logging/logger";
+import { DrizzleDemoStore } from "@/infrastructure/repositories/drizzle-demo-store";
 import { DrizzleExtractionStore, DrizzleLlmCache } from "@/infrastructure/repositories/drizzle-extraction-store";
 import { DrizzleLibraryStore } from "@/infrastructure/repositories/drizzle-library-store";
 import { DrizzleReviewStore } from "@/infrastructure/repositories/drizzle-review-store";
@@ -41,6 +46,15 @@ function build() {
   const reviewStore = new DrizzleReviewStore(db);
   const libraryStore = new DrizzleLibraryStore(db);
   const flashcards = makeFlashcards({ store: new DrizzleSrsStore(db), items: reviewStore });
+  const demoExtraction = new ExtractionRunner({
+    sources,
+    store: extraction,
+    cache: new DrizzleLlmCache(db),
+    llm: new MockLlmProvider(demoResponder),
+    model: "mock",
+    logger: logger.child({ component: "demo-extraction" }),
+    options: { requestsPerMinute: 0 },
+  });
 
   return {
     env,
@@ -55,6 +69,7 @@ function build() {
     flashcards,
     studySessions: makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards }),
     dashboard: makeDashboard(new DrizzleDashboardStore(db)),
+    demo: makeDemoLoader({ store: new DrizzleDemoStore(db), extraction: demoExtraction, note: DEMO_NOTE }),
     quiz: makeQuiz({ store: new DrizzleQuizStore(db) }),
     textExtractor: new DocumentTextExtractor(),
     extractionRunner: new ExtractionRunner({
