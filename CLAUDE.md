@@ -10,7 +10,8 @@ Private, source-grounded study app. Product spec: `docs/BRIEF.md` (local only, n
 - `npm run db:generate` then `npm run db:migrate` – after changing `src/infrastructure/db/schema.ts`
 - `npm run dev` – app on http://localhost:3000
 - `npm run lint && npm run typecheck && npm test` – must pass before every commit
-- `npm run test:e2e` – Playwright; the LLM is always mocked (`LLM_PROVIDER=mock`)
+- `npm run test:int` – integration tests against Postgres (`<db>_test`, created and migrated automatically)
+- `npm run test:e2e` – Playwright against its own `<db>_e2e`; the LLM is always mocked (`LLM_PROVIDER=mock`)
 - Change dependencies with `npx npm@10 install …` – CI and Replit run Node 22's npm 10, and a lockfile written by npm 11 breaks `npm ci` there
 
 ## Architecture (dependencies point inwards)

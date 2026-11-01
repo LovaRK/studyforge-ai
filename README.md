@@ -2,7 +2,23 @@
 
 A private, source-grounded study guide. Upload your own notes, let an LLM propose concepts, terms, how-tos and questions, then approve each one next to the exact source excerpt it came from before it reaches your library.
 
-> **Status:** early build. The scaffold, owner login, database and test harness are in place; extraction, the review queue and the study tools are in progress.
+> **Status:** upload, extraction, the word-for-word check and the review queue work end to end. The library, flashcards, quizzes and dashboard are next.
+
+## How it works
+
+1. **Upload** a PDF, Markdown or text file. The server extracts the text once and stores it; every offset in the app points into that exact string.
+2. **Chunk** it by heading or Q&A pair (about 1,500 words per chunk), so each model call stays small.
+3. **Extract** with Gemini: concepts, terms, systems, processes, how-tos and questions to investigate. Each item carries an `excerpt` the model must copy word for word. Chunks run in a background queue that is throttled for the free tier, backs off exponentially on `429`s, caches responses by chunk hash and can resume after a restart.
+4. **Check** every excerpt against the source (below). Items that fail never reach the queue; they are counted on a "Rejected: excerpt not found" panel.
+5. **Review** each item beside its excerpt highlighted in the source: approve, edit inline, tag, merge (keeping every excerpt) or discard, one at a time or in bulk, with keyboard shortcuts. Only approved items will reach the library.
+
+## The word-for-word check
+
+The model's wording (title, summary, question, answer) is always labelled **Generated interpretation**. The excerpt is the **Source fact**, and it is only accepted if it really is in the source:
+
+- Both texts are normalised for differences that don't change the words: whitespace and line breaks, PDF line-break hyphenation (`modi-\nfied`), smart quotes and dashes, ligatures (`ﬁ`, and PDFs that drop them entirely), case, bullets and code ticks.
+- Normalisation keeps a map from every normalised character back to the original, so the stored excerpt is the exact source slice with its character range.
+- Anything else (a paraphrase, a "fixed" typo, a merged quote, an invented sentence) is rejected. Unit tests cover each case, including true negatives.
 
 ## Stack
 
@@ -45,10 +61,11 @@ npm run dev                  # http://localhost:3000
 
 ```bash
 npm run lint && npm run typecheck && npm test   # unit tests (Vitest)
-npx playwright install chromium && npm run test:e2e
+npm run test:int                                # Postgres integration tests (uses <db>_test)
+npx playwright install chromium && npm run test:e2e   # end to end (uses <db>_e2e, mocked LLM)
 ```
 
-CI runs lint, typecheck, unit tests, a production build and the Playwright suite against Postgres, with the LLM mocked.
+CI runs lint, typecheck, unit tests, integration tests, a production build and the Playwright suite against Postgres, with the LLM mocked. Test databases are separate from your data and created automatically.
 
 ## Environment variables
 
@@ -60,6 +77,7 @@ CI runs lint, typecheck, unit tests, a production build and the Playwright suite
 | `LLM_PROVIDER` | `gemini` (default) or `mock` |
 | `GEMINI_API_KEY` | Google AI Studio key (free tier) |
 | `GEMINI_MODEL` | A Flash / Flash-Lite model, e.g. `gemini-3.5-flash-lite` |
+| `LLM_REQUESTS_PER_MINUTE` | Optional. Spacing for model calls (default 10; 0 with the mock) |
 
 ## License
 
