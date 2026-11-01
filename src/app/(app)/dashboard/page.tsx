@@ -4,6 +4,7 @@ import type { MasteryGroup } from "@/application/dashboard/dashboard";
 import { buttonClass } from "@/components/ui";
 import { container } from "@/server/container";
 import { requireOwner } from "@/server/session";
+import { DemoButton } from "./demo-button";
 export const metadata: Metadata = { title: "Understanding · StudyForge AI" };
 function Mastery({ title, groups, kind }: { title: string; groups: MasteryGroup[]; kind: "tag" | "source" }) {
   return (
@@ -64,6 +65,7 @@ export default async function DashboardPage() {
           <Link href="/review" className={buttonClass.secondary}>
             Review {d.pending} pending
           </Link>
+          <DemoButton />
         </div>
       </header>
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
