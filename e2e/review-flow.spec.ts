@@ -139,3 +139,31 @@ test("a merge across two sources highlights each excerpt in its own document (#2
     "concurrency-basicsSource: Concurrency test note",
   ]);
 });
+
+test("an edit from a stale tab explains that the item already left the queue", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/sources");
+  await page.getByLabel("File").setInputFiles(path.join(__dirname, "fixtures", "two-tabs.md"));
+  await page.getByRole("button", { name: "Upload" }).click();
+  await page.getByRole("button", { name: "Start extraction" }).click();
+  await expect(page.getByTestId("extraction-status")).toContainText("Extraction complete", { timeout: 30_000 });
+
+  await page.goto("/review");
+  await page.getByLabel("Filter by source").selectOption({ label: "two-tabs" });
+  const item = page.getByRole("article", { name: "Item" });
+  const title = (await item.getByRole("heading", { level: 2 }).textContent())!;
+
+  // Approve it in a second tab.
+  const other = await page.context().newPage();
+  await other.goto(page.url());
+  await other.getByRole("article", { name: "Item" }).getByRole("button", { name: "Approve" }).click();
+  await expect(other.getByRole("article", { name: "Item" }).getByRole("heading", { name: title })).toHaveCount(0);
+  await other.close();
+
+  // The first tab still shows it; its edit is refused with the owner-facing message,
+  // which proves use-case errors survive Next.js's separate action and page bundles.
+  await item.getByRole("button", { name: "Edit" }).click();
+  await item.getByLabel("Title").fill("Too late");
+  await item.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "no longer in the review queue" })).toBeVisible();
+});

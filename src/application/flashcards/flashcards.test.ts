@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CardState, GradeRecord, SrsStore } from "@/application/ports/flashcards";
+import type { CardState, GradeRecord, RecordOutcome, SrsStore } from "@/application/ports/flashcards";
 import type { ItemView } from "@/application/ports/study";
 import { FlashcardError, makeFlashcards } from "./flashcards";
 
@@ -7,7 +7,7 @@ const NOW = new Date("2026-11-01T09:00:00Z");
 const item = (status: ItemView["status"] = "approved") =>
   ({ id: "i1", type: "term", title: "T", question: "Q?", answer: "A", status, excerpts: [] }) as unknown as ItemView;
 
-function setup(card: CardState | null, itemStatus: ItemView["status"] = "approved") {
+function setup(card: CardState | null, itemStatus: ItemView["status"] = "approved", outcome: RecordOutcome = "recorded") {
   const recorded: GradeRecord[] = [];
   const store: SrsStore = {
     nextCard: async () => card,
@@ -15,7 +15,7 @@ function setup(card: CardState | null, itemStatus: ItemView["status"] = "approve
     counts: async () => ({ due: 0, new: 1, reviewedSince: 0, nextDueAt: null }),
     record: async (review) => {
       recorded.push(review);
-      return true;
+      return outcome;
     },
   };
   const flashcards = makeFlashcards({ store, items: { getItem: async () => item(itemStatus) }, now: () => NOW });
@@ -64,5 +64,18 @@ describe("flashcards", () => {
     expect(await flashcards.grade({ itemId: "i1", grade: "good", version: null })).toEqual({ recorded: false });
     expect(recorded).toEqual([]);
     await expect(setup(null).flashcards.grade({ itemId: "i1", grade: "good", version: null })).rejects.toThrow(FlashcardError);
+  });
+
+  it("turns a closed session or a removed item into an error the owner can read", async () => {
+    const version = "2026-10-26T09:00:00.000Z";
+    await expect(
+      setup(learned, "approved", "session-closed").flashcards.grade({ itemId: "i1", grade: "good", version, sessionId: "s1" }),
+    ).rejects.toThrow("This study session has ended");
+    await expect(setup(learned, "approved", "not-approved").flashcards.grade({ itemId: "i1", grade: "good", version })).rejects.toThrow(
+      FlashcardError,
+    );
+    expect(await setup(learned, "approved", "stale").flashcards.grade({ itemId: "i1", grade: "good", version })).toEqual({
+      recorded: false,
+    });
   });
 });

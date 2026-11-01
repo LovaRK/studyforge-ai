@@ -34,6 +34,15 @@ export interface GradeRecord {
   sessionId?: string;
 }
 
+/**
+ * - recorded: saved.
+ * - stale: this showing was already graded (double click, second tab).
+ * - not-approved: the item left the library.
+ * - session-closed: the study session has ended, passed its deadline, does not
+ *   cover the item, or already studied it.
+ */
+export type RecordOutcome = "recorded" | "stale" | "not-approved" | "session-closed";
+
 /** Spaced-repetition state. Approved items only, everywhere. */
 export interface SrsStore {
   /** Due cards first (earliest due), then new cards (earliest approved); null when nothing is ready. */
@@ -43,7 +52,8 @@ export interface SrsStore {
   counts(scope: StudyScope, now: Date, reviewedSince: Date): Promise<FlashcardCounts>;
   /**
    * Saves the new state and appends a review, atomically, only if the item is still
-   * approved and nobody graded it since it was shown. Returns false otherwise.
+   * approved, nobody graded it since it was shown and, with a sessionId, the session
+   * still accepts it. Nothing is written otherwise.
    */
-  record(review: GradeRecord): Promise<boolean>;
+  record(review: GradeRecord): Promise<RecordOutcome>;
 }

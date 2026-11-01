@@ -6,6 +6,7 @@ import { makeFlashcards } from "@/application/flashcards/flashcards";
 import { makeConceptPages } from "@/application/library/concept-page";
 import { makeLibrary } from "@/application/library/library";
 import { makeReview } from "@/application/review/review";
+import { makeStudySessions } from "@/application/study-session/study-session";
 import { getEnv } from "@/config/env";
 import { DrizzleOwnerCredentialStore } from "@/infrastructure/auth/drizzle-owner-credential-store";
 import { MemoryLoginRateLimiter } from "@/infrastructure/auth/memory-rate-limiter";
@@ -19,6 +20,7 @@ import { DrizzleLibraryStore } from "@/infrastructure/repositories/drizzle-libra
 import { DrizzleReviewStore } from "@/infrastructure/repositories/drizzle-review-store";
 import { DrizzleSourceStore } from "@/infrastructure/repositories/drizzle-source-store";
 import { DrizzleSrsStore } from "@/infrastructure/repositories/drizzle-srs-store";
+import { DrizzleStudySessionStore } from "@/infrastructure/repositories/drizzle-study-session-store";
 import { DocumentTextExtractor } from "@/infrastructure/text/document-text-extractor";
 
 /** Composition root: the only place that wires infrastructure into use cases. */
@@ -34,6 +36,7 @@ function build() {
   const extraction = new DrizzleExtractionStore(db);
   const reviewStore = new DrizzleReviewStore(db);
   const libraryStore = new DrizzleLibraryStore(db);
+  const flashcards = makeFlashcards({ store: new DrizzleSrsStore(db), items: reviewStore });
 
   return {
     env,
@@ -45,7 +48,8 @@ function build() {
     review: makeReview(reviewStore),
     library: makeLibrary(libraryStore),
     conceptPages: makeConceptPages({ items: reviewStore, sources, library: libraryStore }),
-    flashcards: makeFlashcards({ store: new DrizzleSrsStore(db), items: reviewStore }),
+    flashcards,
+    studySessions: makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards }),
     textExtractor: new DocumentTextExtractor(),
     extractionRunner: new ExtractionRunner({
       sources,

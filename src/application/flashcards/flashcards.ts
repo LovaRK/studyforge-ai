@@ -3,11 +3,14 @@ import type { ExcerptView, ReviewStore } from "@/application/ports/study";
 import type { ItemType } from "@/domain/items/item";
 import { formatWait, newCardState, schedule } from "@/domain/study/srs";
 import { GRADES, type Grade } from "@/domain/study/types";
+import { UserFacingError } from "@/application/errors";
+
+const SESSION_CLOSED = "This study session has ended, so the answer was not saved.";
 
 /** Window for the "reviewed recently" count. */
 export const RECENT_HOURS = 24;
 
-export class FlashcardError extends Error {
+export class FlashcardError extends UserFacingError {
   constructor(message: string) {
     super(message);
     this.name = "FlashcardError";
@@ -79,7 +82,7 @@ export function makeFlashcards({ store, items, now = () => new Date() }: Deps) {
       const card = await store.cardState(input.itemId);
       if (!card) throw new FlashcardError("This item is no longer in your library.");
       if ((card.lastReviewedAt?.toISOString() ?? null) !== input.version) return { recorded: false };
-      const recorded = await store.record({
+      const outcome = await store.record({
         itemId: input.itemId,
         expectedLastReviewedAt: card.lastReviewedAt,
         next: schedule(card.state ?? newCardState(at), input.grade, at),
@@ -87,7 +90,9 @@ export function makeFlashcards({ store, items, now = () => new Date() }: Deps) {
         reviewedAt: at,
         sessionId: input.sessionId,
       });
-      return { recorded };
+      if (outcome === "not-approved") throw new FlashcardError("This item is no longer in your library.");
+      if (outcome === "session-closed") throw new FlashcardError(SESSION_CLOSED);
+      return { recorded: outcome === "recorded" };
     },
   };
 }

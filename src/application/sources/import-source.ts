@@ -1,10 +1,11 @@
 import type { SourceRecord, SourceStore } from "@/application/ports/study";
 import type { TextExtractor, UploadedFile } from "@/application/ports/text-extractor";
 import { chunkText, countWords } from "@/domain/text/chunker";
+import { UserFacingError } from "@/application/errors";
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
-export class SourceImportError extends Error {
+export class SourceImportError extends UserFacingError {
   constructor(message: string) {
     super(message);
     this.name = "SourceImportError";
