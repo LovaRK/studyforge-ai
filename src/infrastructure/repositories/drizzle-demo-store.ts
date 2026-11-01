@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { DemoStore } from "@/application/ports/demo";
 import type { NewChunk, NewSource, SourceRecord } from "@/application/ports/study";
 import type { Database } from "@/infrastructure/db/client";
@@ -12,7 +12,17 @@ export class DrizzleDemoStore implements DemoStore {
   ensureSource(source: NewSource, newChunks: NewChunk[]): Promise<SourceRecord> {
     return this.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(${DEMO_LOCK})`);
-      const [existing] = await tx.select().from(sources).where(eq(sources.fileName, source.fileName)).limit(1);
+      const [existing] = await tx
+        .select()
+        .from(sources)
+        .where(
+          and(
+            eq(sources.fileName, source.fileName),
+            eq(sources.text, source.text),
+            source.attribution === null ? isNull(sources.attribution) : eq(sources.attribution, source.attribution),
+          ),
+        )
+        .limit(1);
       if (existing) return existing;
 
       const [created] = await tx.insert(sources).values(source).returning();
