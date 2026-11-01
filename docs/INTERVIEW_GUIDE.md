@@ -6,7 +6,7 @@ Use this guide to explain the project in your own words. Lead with the user prob
 
 StudyForge AI turns notes the owner is allowed to use into a private study system. An LLM proposes concepts, questions and how-to steps, but nothing enters the library automatically. Every proposal carries a claimed quotation. The server normalizes the quotation and source while retaining an offset map, rejects anything it cannot locate word for word, and puts verified proposals beside the highlighted source for owner review. Only approved items can become searchable pages, flashcards, quiz questions or focused study sessions.
 
-The app is a Next.js 16 server application with strict TypeScript and Postgres through Drizzle. Domain code contains pure matching, chunking, scheduling and quiz logic. Application use cases depend on ports. Infrastructure adapters implement those ports for Postgres, documents, authentication and LLMs. The composition root is the only place that wires them together. Vitest covers pure behavior, real-Postgres tests cover transactions and races, and Playwright covers signed-in user journeys against a production build with a mock model.
+The app is a Next.js 16 server application with strict TypeScript and Postgres through Drizzle. Domain code contains pure matching, chunking, scheduling and quiz logic. Application use cases depend on ports. Infrastructure adapters implement those ports for Postgres, documents, authentication and LLMs. The composition root is the only place that wires them together. Vitest covers pure behavior, real-Postgres tests cover transactions and races, and Playwright covers signed-in user journeys with a mock model, against a production build in CI.
 
 ## Architecture you can draw
 
@@ -62,7 +62,7 @@ Distractors reuse answers from other approved items and remain labelled generate
 
 ### In-process extraction queue
 
-For a single-owner project, a persisted chunk state plus an in-process runner is simpler than a separate queue service. Work resumes after restart because states live in Postgres. The trade-off shows up in hosting: the app is published as one always-on Reserved VM, because a scale-to-zero, multi-instance host would pause the background queue and split the in-memory login limiter. At larger scale, move leases and workers into a durable job system.
+For a single-owner project, a persisted chunk state plus an in-process runner is simpler than a separate queue service. Progress survives a restart because chunk states live in Postgres, and the owner resumes without redoing finished or cached work. The trade-off shows up in hosting: the app is published as one always-on Reserved VM, because a scale-to-zero, multi-instance host would pause the background queue and split the in-memory login limiter. At larger scale, move leases and workers into a durable job system.
 
 ### Owner-only authentication
 
@@ -107,7 +107,7 @@ The main task is trustworthy extraction, review and recall over a modest private
 
 ### What does the dashboard's mastery number mean?
 
-It is deliberately modest: an item is established after at least two successful SM-2 reviews. Tags can overlap and the source is the item's primary source. Quiz accuracy is separate. The UI calls this a study signal, not a knowledge assessment.
+It is deliberately modest: an item is established after at least two consecutive successful SM-2 reviews. Tags can overlap and the source is the item's primary source. Quiz accuracy is separate. The UI calls this a study signal, not a knowledge assessment.
 
 ### How would you make it multi-user?
 
