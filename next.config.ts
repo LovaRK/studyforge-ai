@@ -4,6 +4,12 @@ import type { NextConfig } from "next";
 // nothing here benefits from a prerendered static shell.
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // pdf.js loads a worker file at runtime, so it must not be bundled.
+  serverExternalPackages: ["pdf-parse"],
+  experimental: {
+    // Uploads are capped at 10 MB in the app; leave room for multipart overhead.
+    serverActions: { bodySizeLimit: "11mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {

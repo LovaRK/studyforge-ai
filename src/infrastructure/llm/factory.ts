@@ -1,5 +1,6 @@
 import type { LlmProvider } from "@/application/ports/llm";
 import type { Env } from "@/config/env";
+import { demoResponder } from "./demo-responder";
 import { GeminiProvider } from "./gemini-provider";
 import { MockLlmProvider } from "./mock-provider";
 
@@ -9,6 +10,6 @@ export function createLlmProvider(env: Pick<Env, "LLM_PROVIDER" | "GEMINI_API_KE
       // parseEnv guarantees both values are present for this provider.
       return new GeminiProvider({ apiKey: env.GEMINI_API_KEY!, model: env.GEMINI_MODEL! });
     case "mock":
-      return new MockLlmProvider();
+      return new MockLlmProvider(demoResponder);
   }
 }

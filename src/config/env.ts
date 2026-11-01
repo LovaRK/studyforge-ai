@@ -13,6 +13,8 @@ export const envSchema = z
     LLM_PROVIDER: z.enum(["gemini", "mock"]).default("gemini"),
     GEMINI_API_KEY: z.string().optional(),
     GEMINI_MODEL: z.string().optional(),
+    /** Spacing for model calls; 0 disables throttling (the mock provider). */
+    LLM_REQUESTS_PER_MINUTE: z.coerce.number().int().min(0).max(1000).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.LLM_PROVIDER === "gemini") {
