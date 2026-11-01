@@ -50,7 +50,8 @@ export class ExtractionRunner {
   private readonly options: ExtractionRunnerOptions;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly now: () => number;
-  private lastCallAt = Number.NEGATIVE_INFINITY;
+  /** Earliest time the next model call may start. Shared by every source's run. */
+  private nextSlotAt = Number.NEGATIVE_INFINITY;
 
   constructor(private readonly deps: ExtractionRunnerDeps) {
     this.options = { ...DEFAULTS, ...deps.options };
@@ -142,11 +143,16 @@ export class ExtractionRunner {
     }
   }
 
+  /**
+   * Reserves the next call slot synchronously, before any await, so concurrent
+   * runs for different sources queue up one interval apart instead of waking together.
+   */
   private async throttle(): Promise<void> {
     if (this.options.requestsPerMinute <= 0) return;
     const interval = 60_000 / this.options.requestsPerMinute;
-    const wait = this.lastCallAt + interval - this.now();
-    if (wait > 0) await this.sleep(wait);
-    this.lastCallAt = this.now();
+    const now = this.now();
+    const slot = Math.max(now, this.nextSlotAt);
+    this.nextSlotAt = slot + interval;
+    if (slot > now) await this.sleep(slot - now);
   }
 }

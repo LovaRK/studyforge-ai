@@ -8,6 +8,8 @@ import { ITEM_TYPE_LABELS, ITEM_TYPES, type GeneratedFields, type ItemType } fro
 import { approveAction, discardAction, editAction, mergeAction, tagAction, type ActionResult } from "./actions";
 
 export interface SourceContext {
+  sourceTitle: string;
+  sourceAttribution: string | null;
   before: string;
   match: string;
   after: string;
@@ -394,14 +396,14 @@ function ItemPanel({
       <div className="space-y-2 border-t border-line pt-3">
         <SourceFactLabel />
         {item.excerpts.map((excerpt, i) => (
-          <blockquote key={i} className="border-l-2 border-accent pl-3 text-sm leading-relaxed">
-            {excerpt.text}
-          </blockquote>
+          <figure key={i} className="space-y-1">
+            <blockquote className="border-l-2 border-accent pl-3 text-sm leading-relaxed">{excerpt.text}</blockquote>
+            <figcaption className="pl-3 text-xs text-muted" data-testid="excerpt-source">
+              {excerpt.sourceTitle}
+              {excerpt.sourceAttribution && ` · Source: ${excerpt.sourceAttribution}`}
+            </figcaption>
+          </figure>
         ))}
-        <p className="text-xs text-muted">
-          {item.sourceTitle}
-          {item.sourceAttribution && ` · Source: ${item.sourceAttribution}`}
-        </p>
       </div>
 
       <div className="space-y-2 border-t border-line pt-3">
@@ -469,21 +471,24 @@ function SourcePanel({ item, context }: { item: ItemView; context: SourceContext
 
   return (
     <section className="rounded-lg border border-line bg-surface" aria-label="Source text">
-      <div className="border-b border-line px-4 py-2">
-        <p className="text-sm font-medium">{item.sourceTitle}</p>
-        {item.sourceAttribution && <p className="text-xs text-muted">Source: {item.sourceAttribution}</p>}
-      </div>
-      <div ref={paneRef} className="relative max-h-[70vh] space-y-4 overflow-auto px-4 py-3">
+      <div ref={paneRef} className="relative max-h-[70vh] divide-y divide-line overflow-auto">
         {context.map((part, i) => (
-          <p key={i} className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted">
-            {part.truncatedBefore && "… "}
-            {part.before}
-            <mark className="rounded-sm bg-accent/20 px-0.5 text-foreground" data-testid="source-highlight">
-              {part.match}
-            </mark>
-            {part.after}
-            {part.truncatedAfter && " …"}
-          </p>
+          <div key={i}>
+            {/* Each excerpt is shown inside its own document; merged items can quote several. */}
+            <div className="sticky top-0 border-b border-line bg-surface px-4 py-2" data-testid="context-source">
+              <p className="text-sm font-medium">{part.sourceTitle}</p>
+              {part.sourceAttribution && <p className="text-xs text-muted">Source: {part.sourceAttribution}</p>}
+            </div>
+            <p className="whitespace-pre-wrap break-words px-4 py-3 text-sm leading-relaxed text-muted">
+              {part.truncatedBefore && "… "}
+              {part.before}
+              <mark className="rounded-sm bg-accent/20 px-0.5 text-foreground" data-testid="source-highlight">
+                {part.match}
+              </mark>
+              {part.after}
+              {part.truncatedAfter && " …"}
+            </p>
+          </div>
         ))}
       </div>
     </section>

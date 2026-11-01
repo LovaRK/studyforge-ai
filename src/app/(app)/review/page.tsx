@@ -29,19 +29,27 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
 
   const selected = queue.find((item) => item.id === filters.item) ?? queue[0] ?? null;
 
-  // The source text around each excerpt of the selected item, for the right-hand pane.
+  // The text around each excerpt, read from that excerpt's own document:
+  // a merged item can quote several sources.
   let context: SourceContext[] = [];
   if (selected) {
-    const source = await c.sources.findById(selected.sourceId);
-    if (source) {
-      context = selected.excerpts.map((excerpt) => ({
-        before: source.text.slice(Math.max(0, excerpt.start - CONTEXT_CHARS), excerpt.start),
-        match: source.text.slice(excerpt.start, excerpt.end),
-        after: source.text.slice(excerpt.end, excerpt.end + CONTEXT_CHARS),
-        truncatedBefore: excerpt.start > CONTEXT_CHARS,
-        truncatedAfter: excerpt.end + CONTEXT_CHARS < source.text.length,
-      }));
-    }
+    const sourceIds = [...new Set(selected.excerpts.map((excerpt) => excerpt.sourceId))];
+    const documents = new Map((await Promise.all(sourceIds.map((id) => c.sources.findById(id)))).flatMap((s) => (s ? [[s.id, s]] : [])));
+    context = selected.excerpts.flatMap((excerpt) => {
+      const source = documents.get(excerpt.sourceId);
+      if (!source) return [];
+      return [
+        {
+          sourceTitle: excerpt.sourceTitle,
+          sourceAttribution: excerpt.sourceAttribution,
+          before: source.text.slice(Math.max(0, excerpt.start - CONTEXT_CHARS), excerpt.start),
+          match: source.text.slice(excerpt.start, excerpt.end),
+          after: source.text.slice(excerpt.end, excerpt.end + CONTEXT_CHARS),
+          truncatedBefore: excerpt.start > CONTEXT_CHARS,
+          truncatedAfter: excerpt.end + CONTEXT_CHARS < source.text.length,
+        },
+      ];
+    });
   }
 
   return (

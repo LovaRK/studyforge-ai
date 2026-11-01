@@ -1,19 +1,21 @@
-import type {
-  ChunkRecord,
-  ExtractionProgress,
-  ExtractionStore,
-  ItemView,
-  LlmCache,
-  NewChunk,
-  NewSource,
-  QueueFilter,
-  RejectedItem,
-  RejectedRecord,
-  ReviewStore,
-  SourceRecord,
-  SourceStore,
-  SourceSummary,
-  VerifiedItem,
+import {
+  ItemNotPendingError,
+  type ChunkRecord,
+  type ExtractionProgress,
+  type ExtractionStore,
+  type ItemView,
+  type LlmCache,
+  type MergeCandidate,
+  type NewChunk,
+  type NewSource,
+  type QueueFilter,
+  type RejectedItem,
+  type RejectedRecord,
+  type ReviewStore,
+  type SourceRecord,
+  type SourceStore,
+  type SourceSummary,
+  type VerifiedItem,
 } from "@/application/ports/study";
 import type { GeneratedFields, ReviewAction } from "@/domain/items/item";
 
@@ -108,7 +110,7 @@ export class InMemoryStudyDb implements SourceStore, ExtractionStore, LlmCache, 
         status: "pending",
         edited: false,
         createdAt: new Date(),
-        excerpts: [v.excerpt],
+        excerpts: [{ ...v.excerpt, sourceTitle: source.title, sourceAttribution: source.attribution }],
       });
     }
     for (const r of rejected) this.rejected.push({ ...r, id: this.id("rejected"), sourceId: chunk.sourceId, createdAt: new Date() });
@@ -156,21 +158,29 @@ export class InMemoryStudyDb implements SourceStore, ExtractionStore, LlmCache, 
     return changed.map((i) => i.id);
   }
 
+  /** Same contract as the Postgres store: writes only touch pending items. */
+  private pending(ids: string[]): ItemView[] {
+    const found = ids.map((id) => this.items.find((i) => i.id === id && i.status === "pending"));
+    const stale = ids.filter((_, i) => !found[i]);
+    if (stale.length > 0) throw new ItemNotPendingError(stale);
+    return found as ItemView[];
+  }
+
   async updateFields(id: string, fields: GeneratedFields) {
-    Object.assign((await this.getItem(id))!, fields, { edited: true });
+    Object.assign(this.pending([id])[0]!, fields, { edited: true });
     this.events.push({ itemId: id, action: "edit" });
   }
 
   async setTags(id: string, tags: string[]) {
-    (await this.getItem(id))!.tags = tags;
+    this.pending([id])[0]!.tags = tags;
     this.events.push({ itemId: id, action: "tag" });
   }
 
-  async merge(ids: string[], fields: GeneratedFields & { tags: string[] }) {
-    const parts = ids.map((id) => this.items.find((i) => i.id === id)!);
+  async merge(ids: string[], build: (items: MergeCandidate[]) => GeneratedFields & { tags: string[] }) {
+    const parts = this.pending(ids);
     const merged: ItemView = {
       ...parts[0]!,
-      ...fields,
+      ...build(parts),
       id: this.id("item"),
       edited: true,
       status: "pending",

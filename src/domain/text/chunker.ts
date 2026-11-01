@@ -41,6 +41,31 @@ function splitAt(text: string, start: number, end: number, starts: number[], pat
   return bounds.slice(0, -1).map((s, i) => [s, bounds[i + 1]!]);
 }
 
+/**
+ * Last resort for a single line longer than maxWords: cut between words,
+ * preferring a sentence end in the last fifth of each window.
+ */
+function splitWords(text: string, [start, end]: [number, number], maxWords: number): [number, number][] {
+  const words = [...text.slice(start, end).matchAll(/\S+/g)].map((m) => ({ at: start + m.index, word: m[0] }));
+  if (words.length <= maxWords) return [[start, end]];
+
+  const spans: [number, number][] = [];
+  let first = 0;
+  while (words.length - first > maxWords) {
+    let cut = first + maxWords;
+    for (let j = cut; j > first + Math.floor(maxWords * 0.8); j--) {
+      if (/[.!?]["')\]]*$/.test(words[j - 1]!.word)) {
+        cut = j;
+        break;
+      }
+    }
+    spans.push([spans.length === 0 ? start : words[first]!.at, words[cut]!.at]);
+    first = cut;
+  }
+  spans.push([spans.length === 0 ? start : words[first]!.at, end]);
+  return spans;
+}
+
 /** Greedily packs consecutive spans into groups of at most maxWords. */
 function pack(text: string, spans: [number, number][], maxWords: number): [number, number][] {
   const groups: [number, number][] = [];
@@ -71,9 +96,10 @@ export function chunkText(text: string, options: { maxWords?: number } = {}): Te
       spans.push(section);
       continue;
     }
-    // Oversized section: cut at numbered points or blank lines, then at any line.
+    // Oversized section: cut at numbered points or blank lines, then at any line,
+    // then between words inside a line that is still too long.
     for (const part of pack(text, splitAt(text, ...section, starts, WEAK_BOUNDARY), maxWords)) {
-      const lines = splitAt(text, ...part, starts, /^/);
+      const lines = splitAt(text, ...part, starts, /^/).flatMap((line) => splitWords(text, line, maxWords));
       spans.push(...(countWords(text.slice(...part)) <= maxWords ? [part] : pack(text, lines, maxWords)));
     }
   }
