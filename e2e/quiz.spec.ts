@@ -18,7 +18,7 @@ test("quiz reveals source feedback only after answering and completes a scoped r
   for (const box of await boxes.all()) await box.check();
   await page.getByRole("button", { name: "Approve selected" }).click();
   await expect(page.getByText("Nothing to review")).toBeVisible();
-  await page.goto(`/quiz?scope=source&value=${sourceId}`);
+  await page.goto(`/quiz?source=${sourceId}`);
   await expect(page.getByRole("heading", { name: "Quick quiz" })).toBeVisible();
   for (let i = 0; i < count; i++) {
     await expect(page.getByRole("region", { name: "Answer feedback" })).toHaveCount(0);
