@@ -1,3 +1,5 @@
+import type { Logger } from "@/application/ports/logger";
+
 type Level = "debug" | "info" | "warn" | "error";
 
 const SENSITIVE_KEY = /pass(word)?|secret|token|key|cookie|authorization/i;
@@ -12,13 +14,7 @@ export function redact(value: unknown, depth = 0): unknown {
   );
 }
 
-export interface Logger {
-  debug(message: string, fields?: Record<string, unknown>): void;
-  info(message: string, fields?: Record<string, unknown>): void;
-  warn(message: string, fields?: Record<string, unknown>): void;
-  error(message: string, fields?: Record<string, unknown>): void;
-  child(bindings: Record<string, unknown>): Logger;
-}
+export type { Logger };
 
 /** Structured JSON-lines logger. */
 export function createLogger(
