@@ -2,7 +2,7 @@ import type { Flashcards, FlashcardView } from "@/application/flashcards/flashca
 import type { StudyScope } from "@/application/ports/flashcards";
 import type { SessionActivity, StudySessionRecord, StudySessionStore } from "@/application/ports/study-session";
 import { UserFacingError } from "@/application/errors";
-import type { Quiz, QuizQuestionView } from "@/application/quiz/quiz";
+import { quizScopeSchema, type Quiz, type QuizQuestionView } from "@/application/quiz/quiz";
 
 export const SESSION_MINUTES = { min: 1, max: 120 } as const;
 
@@ -33,10 +33,10 @@ interface Deps {
 }
 
 /**
- * A focused, time-boxed run over everything, one tag or one source. Steps
- * alternate between a flashcard (due first, then new) and a quiz question, each
- * about an item not yet studied in this session; when one kind runs out the other
- * continues. The session ends when its time is up, when nothing is left, or when
+ * A focused, time-boxed run over everything, one tag or one source. Due flashcards
+ * come first, so a quiz question never uses up an item whose review is due; then new
+ * flashcards alternate with quiz questions. Each step is about an item not yet studied
+ * in this session, and when one kind runs out the other continues. The session ends when its time is up, when nothing is left, or when
  * the owner finishes it.
  */
 export function makeStudySessions({ store, flashcards, quiz, now = () => new Date() }: Deps) {
@@ -57,8 +57,16 @@ export function makeStudySessions({ store, flashcards, quiz, now = () => new Dat
       if (!Number.isInteger(plannedMinutes) || plannedMinutes < SESSION_MINUTES.min || plannedMinutes > SESSION_MINUTES.max) {
         throw new StudySessionError(`Choose between ${SESSION_MINUTES.min} and ${SESSION_MINUTES.max} minutes.`);
       }
-      if (scope.scope !== "all" && !scope.value) throw new StudySessionError("Choose a tag or a source.");
-      return store.start({ scope: scope.scope, scopeValue: scope.scope === "all" ? null : scope.value!, plannedMinutes, startedAt: now() });
+      // The same rules the quiz applies, so every session it starts can show questions.
+      const valid = quizScopeSchema.safeParse(scope);
+      if (!valid.success) throw new StudySessionError("Choose a tag or a source.");
+      const checked = valid.data;
+      return store.start({
+        scope: checked.scope,
+        scopeValue: checked.scope === "all" ? null : checked.value,
+        plannedMinutes,
+        startedAt: now(),
+      });
     },
 
     async next(id: string): Promise<SessionStep> {
@@ -79,21 +87,12 @@ export function makeStudySessions({ store, flashcards, quiz, now = () => new Dat
       const scope: StudyScope =
         session.scope === "all" ? { scope: "all" } : { scope: session.scope, value: session.scopeValue ?? undefined };
       const seen = summary.activity.seenItemIds;
-      const nextCard = async (): Promise<SessionStep | null> => {
-        const { card } = await flashcards.next(scope, seen);
-        return card ? { kind: "card", card, endsAt, summary } : null;
-      };
-      const nextQuestion = async (): Promise<SessionStep | null> => {
-        const question = quiz ? await quiz.nextQuestion(scope, seen) : null;
-        return question ? { kind: "quiz", question, endsAt, summary } : null;
-      };
-      // Even steps start with a card, odd steps with a question.
-      const order = summary.reviewed % 2 === 0 ? [nextCard, nextQuestion] : [nextQuestion, nextCard];
-      for (const attempt of order) {
-        const step = await attempt();
-        if (step) return step;
-      }
-      return done("empty");
+      const { card } = await flashcards.next(scope, seen);
+      // A due card always comes first; after that, odd steps (or no card left) try a question.
+      if (card && (!card.isNew || summary.reviewed % 2 === 0)) return { kind: "card", card, endsAt, summary };
+      const question = quiz ? await quiz.nextQuestion(scope, seen) : null;
+      if (question) return { kind: "quiz", question, endsAt, summary };
+      return card ? { kind: "card", card, endsAt, summary } : done("empty");
     },
 
     async finish(id: string): Promise<void> {

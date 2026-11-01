@@ -77,12 +77,7 @@ export default async function StudySessionPage({ params }: PageProps<"/study/[id
       {step.kind === "card" ? (
         <FlashcardCard key={step.card.itemId} card={step.card} sessionId={id} />
       ) : (
-        <SessionQuiz
-          key={step.question.id}
-          question={step.question}
-          scope={session.scope === "all" ? { scope: "all" } : { scope: session.scope, value: session.scopeValue! }}
-          sessionId={id}
-        />
+        <SessionQuiz key={step.question.id} question={step.question} sessionId={id} />
       )}
     </div>
   );

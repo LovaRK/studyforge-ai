@@ -4,6 +4,7 @@ import type { QuizAnswer, QuizScope } from "@/application/ports/quiz";
 import type { QuizQuestionView } from "@/application/quiz/quiz";
 import { buttonClass, EmptyState, GeneratedLabel, SourceFactLabel } from "@/components/ui";
 import { answerQuizAction, nextQuizAction } from "./actions";
+/** On its own page the card fetches the next question for `scope`; in a session, `onNext` asks the session instead. */
 export function QuizCard({
   initial,
   scope,
@@ -11,10 +12,8 @@ export function QuizCard({
   onNext,
 }: {
   initial: QuizQuestionView | null;
-  scope: QuizScope;
   sessionId?: string;
-  onNext?: () => void;
-}) {
+} & ({ scope: QuizScope; onNext?: undefined } | { scope?: undefined; onNext: () => void })) {
   const [question, setQuestion] = useState(initial);
   const [feedback, setFeedback] = useState<QuizAnswer | null>(null);
   const [seen, setSeen] = useState<string[]>([]);
@@ -125,6 +124,12 @@ export function QuizCard({
         <p role="alert" className="text-danger">
           {error}
         </p>
+      )}
+      {error && onNext && !feedback && (
+        // A refused answer (the session ended, or another tab studied this item) won't succeed on retry.
+        <button type="button" className={buttonClass.secondary} disabled={pending} onClick={() => next()}>
+          Continue
+        </button>
       )}
     </div>
   );

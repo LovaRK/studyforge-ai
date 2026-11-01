@@ -16,8 +16,8 @@ export default async function StudyPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Focused study</h1>
         <p className="text-muted">
-          Pick a tag or a source and a length. Flashcards (due first, then new) alternate with quiz questions, each item once, until the
-          time is up.
+          Pick a tag or a source and a length. Due flashcards come first, then new ones alternate with quiz questions, each item once, until
+          the time is up.
         </p>
       </div>
       {facets.total === 0 ? (

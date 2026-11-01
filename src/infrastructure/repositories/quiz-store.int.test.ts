@@ -72,6 +72,25 @@ it("expires abandoned questions without sharing a recent showing", async () => {
   expect(second.itemId).toBe(first.itemId);
   expect(await db.select().from(quizQuestions)).toHaveLength(1);
 });
+it("expires any item's abandoned questions, but never one that is being answered", async () => {
+  const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+  const abandoned = (await quiz.nextQuestion({ scope: "all" }))!;
+  const answered = (await quiz.nextQuestion({ scope: "all" }))!;
+  await quiz.answer(answered.id, 0);
+  const open = (await quiz.nextQuestion({ scope: "all" }))!;
+  await db.update(quizQuestions).set({ createdAt: twoDaysAgo });
+
+  // Another tab holds the open question while answering it.
+  await db.transaction(async (tx) => {
+    await tx.select().from(quizQuestions).where(eq(quizQuestions.id, open.id)).for("update");
+    // Showing a question about the other item skips the locked row instead of waiting.
+    await quiz.nextQuestion({ scope: "all" }, [abandoned.itemId]);
+  });
+  const left = (await db.select({ id: quizQuestions.id }).from(quizQuestions)).map((q) => q.id);
+  expect(left).not.toContain(abandoned.id);
+  expect(left).toEqual(expect.arrayContaining([answered.id, open.id]));
+  expect(await db.select().from(quizAttempts)).toHaveLength(1);
+});
 it("keeps concurrent showings independent", async () => {
   const [first, second] = await Promise.all([quiz.nextQuestion({ scope: "all" }), quiz.nextQuestion({ scope: "all" })]);
   expect(first!.id).not.toBe(second!.id);
