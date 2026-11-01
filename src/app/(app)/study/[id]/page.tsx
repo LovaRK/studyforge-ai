@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { StudySessionError, type SessionSummary } from "@/application/study-session/study-session";
+import { isUserFacingError } from "@/application/errors";
+import type { SessionSummary } from "@/application/study-session/study-session";
 import { buttonClass } from "@/components/ui";
 import { GRADES } from "@/domain/study/types";
 import { container } from "@/server/container";
@@ -22,7 +23,8 @@ export default async function StudySessionPage({ params }: PageProps<"/study/[id
 
   const c = container();
   const step = await c.studySessions.next(id).catch((error: unknown) => {
-    if (error instanceof StudySessionError) notFound();
+    // The only user-facing error here is an unknown session.
+    if (isUserFacingError(error)) notFound();
     throw error;
   });
   const { session } = step.summary;

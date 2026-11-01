@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ReviewError } from "@/application/review/review";
+import { isUserFacingError } from "@/application/errors";
 import { ITEM_TYPES } from "@/domain/items/item";
 import { logger } from "@/infrastructure/logging/logger";
 import { container } from "@/server/container";
@@ -29,7 +29,7 @@ async function run<T>(schema: z.ZodType<T>, input: unknown, act: (value: T) => P
     revalidatePath("/review");
     return { ok: true, ...(id ? { id } : {}) };
   } catch (error) {
-    if (error instanceof ReviewError) return { ok: false, error: error.message };
+    if (isUserFacingError(error)) return { ok: false, error: error.message };
     logger.error("review action failed", { error });
     return { ok: false, error: "Something went wrong. Please try again." };
   }

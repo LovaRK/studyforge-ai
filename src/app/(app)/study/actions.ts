@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { SESSION_MINUTES, StudySessionError } from "@/application/study-session/study-session";
+import { isUserFacingError } from "@/application/errors";
+import { SESSION_MINUTES } from "@/application/study-session/study-session";
 import { logger } from "@/infrastructure/logging/logger";
 import { container } from "@/server/container";
 import { requireOwner } from "@/server/session";
@@ -28,7 +29,7 @@ export async function startSessionAction(_state: StartState, formData: FormData)
   try {
     id = await container().studySessions.start(parsed.data.scope, parsed.data.minutes);
   } catch (error) {
-    if (error instanceof StudySessionError) return { error: error.message };
+    if (isUserFacingError(error)) return { error: error.message };
     logger.error("starting a study session failed", { error });
     return { error: "Something went wrong. Please try again." };
   }

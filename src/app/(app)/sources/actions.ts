@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { importSource, SourceImportError } from "@/application/sources/import-source";
+import { isUserFacingError } from "@/application/errors";
+import { importSource } from "@/application/sources/import-source";
 import { logger } from "@/infrastructure/logging/logger";
 import { container } from "@/server/container";
 import { requireOwner } from "@/server/session";
@@ -36,7 +37,7 @@ export async function uploadSourceAction(_previous: UploadState, formData: FormD
     sourceId = source.id;
     logger.info("source imported", { sourceId, words: source.wordCount });
   } catch (error) {
-    if (error instanceof SourceImportError) return { error: error.message };
+    if (isUserFacingError(error)) return { error: error.message };
     logger.error("source import failed", { error });
     return { error: "The file could not be read. Try a different file." };
   }

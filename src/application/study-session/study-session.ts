@@ -1,10 +1,11 @@
 import type { Flashcards, FlashcardView } from "@/application/flashcards/flashcards";
 import type { StudyScope } from "@/application/ports/flashcards";
 import type { SessionActivity, StudySessionRecord, StudySessionStore } from "@/application/ports/study-session";
+import { UserFacingError } from "@/application/errors";
 
 export const SESSION_MINUTES = { min: 1, max: 120 } as const;
 
-export class StudySessionError extends Error {
+export class StudySessionError extends UserFacingError {
   constructor(message: string) {
     super(message);
     this.name = "StudySessionError";

@@ -3,13 +3,14 @@ import type { ExcerptView, ReviewStore } from "@/application/ports/study";
 import type { ItemType } from "@/domain/items/item";
 import { formatWait, newCardState, schedule } from "@/domain/study/srs";
 import { GRADES, type Grade } from "@/domain/study/types";
+import { UserFacingError } from "@/application/errors";
 
 const SESSION_CLOSED = "This study session has ended, so the answer was not saved.";
 
 /** Window for the "reviewed recently" count. */
 export const RECENT_HOURS = 24;
 
-export class FlashcardError extends Error {
+export class FlashcardError extends UserFacingError {
   constructor(message: string) {
     super(message);
     this.name = "FlashcardError";

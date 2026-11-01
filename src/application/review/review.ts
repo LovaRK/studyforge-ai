@@ -1,7 +1,8 @@
 import { ItemNotPendingError, type MergeCandidate, type ReviewStore } from "@/application/ports/study";
 import { normalizeTags, type GeneratedFields } from "@/domain/items/item";
+import { UserFacingError } from "@/application/errors";
 
-export class ReviewError extends Error {
+export class ReviewError extends UserFacingError {
   constructor(message: string) {
     super(message);
     this.name = "ReviewError";
