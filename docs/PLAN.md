@@ -16,7 +16,7 @@ Source: the Handshake mission "Create a Study App – Build a Living Study Guide
 | 6   | Concept pages and how-to guides with linked excerpts and a labelled generated summary                               | In review   | A                          |
 | 7   | Flashcards with SM-2 (Again / Hard / Good / Easy) and due counts                                                    | In review   | A                          |
 | 8   | Quizzes from approved items only; distractors source-checked or labelled generated; excerpt shown after each answer | Planned     | B                          |
-| 9   | Focused study session: pick tag or source, mixed due cards and quiz questions for N minutes                         | Planned     | A (uses B's quiz use case) |
+| 9   | Focused study session: pick tag or source, mixed due cards and quiz questions for N minutes                         | In review   | A (uses B's quiz use case) |
 | 10  | Understanding dashboard: mastery by tag and source, due cards, streak, accuracy, review counts, rejection rate      | Planned     | B                          |
 | 11  | Backup: full JSON export (import if time allows)                                                                    | Planned     | B                          |
 | 12  | Demo mode: original demo note and seed script                                                                       | Planned     | B                          |
