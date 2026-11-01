@@ -103,6 +103,10 @@ CI runs lint, typecheck, unit tests, integration tests, a production build and t
 
 The checked-in `.replit` uses Node 22, installs from the lockfile, builds Next.js, applies migrations and starts on port 3000. The owner-facing [Replit deployment guide](docs/DEPLOY.md) covers production database setup, secrets, privacy, persistence, backup and rollback checks. Deployment and secret entry remain owner actions.
 
+## Explaining the project
+
+The [interview guide](docs/INTERVIEW_GUIDE.md) covers the architecture, invariants, trade-offs, production bugs, likely questions and a safe demonstration using only original demo material.
+
 ## License
 
 [MIT](LICENSE)
