@@ -9,7 +9,15 @@ import { ExtractionPanel } from "./extraction-panel";
 
 export const metadata: Metadata = { title: "Source · StudyForge AI" };
 
-export default async function SourcePage({ params }: PageProps<"/sources/[id]">) {
+/** `?at=start-end` highlights a span of the text, e.g. an excerpt opened from the library. */
+const atSchema = z
+  .string()
+  .regex(/^\d{1,9}-\d{1,9}$/)
+  .transform((value) => value.split("-").map(Number) as [number, number])
+  .optional()
+  .catch(undefined);
+
+export default async function SourcePage({ params, searchParams }: PageProps<"/sources/[id]">) {
   await requireOwner();
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
@@ -17,6 +25,8 @@ export default async function SourcePage({ params }: PageProps<"/sources/[id]">)
   const c = container();
   const source = await c.sources.findById(id);
   if (!source) notFound();
+  const at = atSchema.parse((await searchParams).at);
+  const highlight = at && at[0] < at[1] && at[1] <= source.text.length ? at : null;
   const [progress, rejected] = await Promise.all([c.sources.progress(id), c.extraction.listRejected(id)]);
   const running = c.extractionRunner.isRunning(id);
 
@@ -61,10 +71,20 @@ export default async function SourcePage({ params }: PageProps<"/sources/[id]">)
         )}
       </section>
 
-      <details className="rounded-lg border border-line bg-surface">
+      <details className="rounded-lg border border-line bg-surface" open={highlight !== null}>
         <summary className="cursor-pointer px-4 py-3 font-medium">Extracted text</summary>
         <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words border-t border-line px-4 py-3 font-sans text-sm leading-relaxed">
-          {source.text}
+          {highlight ? (
+            <>
+              {source.text.slice(0, highlight[0])}
+              <mark id="excerpt" className="scroll-mt-24 rounded-sm bg-accent/20 px-0.5 text-foreground" data-testid="source-highlight">
+                {source.text.slice(...highlight)}
+              </mark>
+              {source.text.slice(highlight[1])}
+            </>
+          ) : (
+            source.text
+          )}
         </pre>
       </details>
     </div>

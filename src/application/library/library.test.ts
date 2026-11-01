@@ -27,6 +27,9 @@ function storeReturning(items: LibraryItem[]) {
     async facets() {
       return { total: items.length, tags: [], sources: [] };
     },
+    async related() {
+      return [];
+    },
   };
   return { store, calls };
 }

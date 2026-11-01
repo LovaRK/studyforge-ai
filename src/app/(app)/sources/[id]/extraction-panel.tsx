@@ -1,14 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useTransition } from "react";
+import { useEffect } from "react";
+import { useFormStatus } from "react-dom";
 import type { ExtractionProgress } from "@/application/ports/study";
 import { buttonClass } from "@/components/ui";
 import { startExtractionAction } from "../actions";
 
 export function ExtractionPanel({ sourceId, progress, running }: { sourceId: string; progress: ExtractionProgress; running: boolean }) {
   const router = useRouter();
-  const [starting, startTransition] = useTransition();
   const { totalChunks, doneChunks, failedChunks } = progress;
   const complete = totalChunks > 0 && doneChunks === totalChunks;
   const percent = totalChunks === 0 ? 0 : Math.round((doneChunks / totalChunks) * 100);
@@ -28,20 +28,11 @@ export function ExtractionPanel({ sourceId, progress, running }: { sourceId: str
         <h2 id="extraction-heading" className="font-medium">
           Extraction
         </h2>
+        {/* A form, not an onClick: it works before hydration and without JavaScript. */}
         {!complete && (
-          <button
-            type="button"
-            className={buttonClass.primary}
-            disabled={running || starting}
-            onClick={() =>
-              startTransition(async () => {
-                await startExtractionAction(sourceId);
-                router.refresh();
-              })
-            }
-          >
-            {label}
-          </button>
+          <form action={startExtractionAction.bind(null, sourceId)}>
+            <StartButton label={label} disabled={running} />
+          </form>
         )}
       </div>
       <div
@@ -60,5 +51,14 @@ export function ExtractionPanel({ sourceId, progress, running }: { sourceId: str
         {progress.rejectedItems} rejected
       </p>
     </section>
+  );
+}
+
+function StartButton({ label, disabled }: { label: string; disabled: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" className={buttonClass.primary} disabled={disabled || pending}>
+      {label}
+    </button>
   );
 }

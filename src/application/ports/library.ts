@@ -44,4 +44,9 @@ export interface LibraryStore {
    */
   list(filter: LibraryFilter & { tsquery?: string }): Promise<LibraryItem[]>;
   facets(): Promise<LibraryFacets>;
+  /**
+   * Other approved items that share a tag with, or come from the same source
+   * as, the given item: most shared tags first, then by title.
+   */
+  related(item: { id: string; tags: string[]; sourceId: string }, limit: number): Promise<LibraryItem[]>;
 }

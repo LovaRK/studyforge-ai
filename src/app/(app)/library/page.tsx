@@ -85,7 +85,11 @@ function LibraryCard({ item }: { item: LibraryItem }) {
   return (
     <article aria-label={item.title} className="h-full space-y-3 rounded-lg border border-line bg-surface p-4">
       <div className="space-y-0.5">
-        <h3 className="font-medium">{item.title}</h3>
+        <h3 className="font-medium">
+          <Link href={`/library/${item.id}`} className="hover:underline">
+            {item.title}
+          </Link>
+        </h3>
         <p className="text-xs text-muted">
           {item.sourceTitle}
           {item.excerptCount > 1 && ` · ${item.excerptCount} excerpts`}

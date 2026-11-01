@@ -13,7 +13,7 @@ Source: the Handshake mission "Create a Study App – Build a Living Study Guide
 | 3   | Word-for-word check; failed excerpts rejected and counted                                                           | Done        | A                          |
 | 4   | Review queue beside the source: approve, edit, merge, tag, discard, filters, bulk, shortcuts                        | Done        | A                          |
 | 5   | Library grouped by type, Postgres full-text search, tag and source filters                                          | In review   | A                          |
-| 6   | Concept pages and how-to guides with linked excerpts and a labelled generated summary                               | Planned     | A                          |
+| 6   | Concept pages and how-to guides with linked excerpts and a labelled generated summary                               | In review   | A                          |
 | 7   | Flashcards with SM-2 (Again / Hard / Good / Easy) and due counts                                                    | Planned     | A                          |
 | 8   | Quizzes from approved items only; distractors source-checked or labelled generated; excerpt shown after each answer | Planned     | B                          |
 | 9   | Focused study session: pick tag or source, mixed due cards and quiz questions for N minutes                         | Planned     | A (uses B's quiz use case) |
