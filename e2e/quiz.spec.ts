@@ -12,6 +12,7 @@ test("quiz reveals source feedback only after answering and completes a scoped r
   const sourceId = new URL(page.url()).pathname.split("/").pop()!;
   await page.goto("/review");
   await page.getByLabel("Filter by source").selectOption({ label: "quiz-garden" });
+  await expect(page).toHaveURL(new RegExp(`source=${sourceId}`));
   const boxes = page.getByRole("list", { name: "Queue" }).getByRole("checkbox");
   const count = await boxes.count();
   expect(count).toBeGreaterThan(1);
