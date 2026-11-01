@@ -1,9 +1,10 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { ExtractionRunner } from "@/application/extraction/extraction-runner";
-import { makeReview } from "@/application/review/review";
+import { ItemNotPendingError } from "@/application/ports/study";
+import { makeReview, ReviewError } from "@/application/review/review";
 import { importSource } from "@/application/sources/import-source";
-import { reviewEvents } from "@/infrastructure/db/schema";
+import { items, reviewEvents } from "@/infrastructure/db/schema";
 import { demoResponder } from "@/infrastructure/llm/demo-responder";
 import { MockLlmProvider } from "@/infrastructure/llm/mock-provider";
 import { createLogger } from "@/infrastructure/logging/logger";
@@ -139,5 +140,85 @@ describe("Postgres stores: upload → extraction → review", () => {
     const [item] = await reviewStore.listQueue({});
     expect(await reviewStore.setStatus([item!.id], "approved", "approve")).toEqual([item!.id]);
     expect(await reviewStore.setStatus([item!.id], "discarded", "discard")).toEqual([]);
+  });
+
+  it("keeps each merged excerpt linked to its own source document", async () => {
+    const a = await importNote(1000);
+    const b = await importSource(
+      { sources, extractor: new DocumentTextExtractor() },
+      {
+        file: {
+          name: "optionals.md",
+          mimeType: "text/markdown",
+          bytes: new TextEncoder().encode("Optionals in Swift model a value that may be missing entirely at runtime."),
+        },
+        attribution: "Second note",
+      },
+    );
+    await extract(a.id);
+    await extract(b.id);
+    const [fromA] = await reviewStore.listQueue({ sourceId: a.id });
+    const [fromB] = await reviewStore.listQueue({ sourceId: b.id });
+
+    const merged = (await reviewStore.getItem(await review.merge([fromA!.id, fromB!.id])))!;
+    expect(merged.excerpts.map((e) => [e.sourceId, e.sourceTitle, e.sourceAttribution])).toEqual([
+      [a.id, "types", "Written for the tests"],
+      [b.id, "optionals", "Second note"],
+    ]);
+    expect(merged.excerpts[1]!.text).toBe(b.text.slice(merged.excerpts[1]!.start, merged.excerpts[1]!.end));
+  });
+});
+
+describe("review writes never change items that are no longer pending (#7)", () => {
+  async function queue() {
+    const source = await importNote(1000);
+    await extract(source.id);
+    return reviewStore.listQueue({});
+  }
+
+  it("rejects a stale edit or tag after approval and leaves the row untouched", async () => {
+    const [item] = await queue();
+    await review.approve([item!.id]);
+
+    await expect(
+      reviewStore.updateFields(item!.id, { type: "term", title: "Changed after approval", summary: "s", question: "q", answer: "a" }),
+    ).rejects.toBeInstanceOf(ItemNotPendingError);
+    await expect(reviewStore.setTags(item!.id, ["late"])).rejects.toBeInstanceOf(ItemNotPendingError);
+    await expect(review.edit(item!.id, { type: "term", title: "x", summary: "x", question: "x", answer: "x" })).rejects.toThrow(
+      "no longer in the review queue",
+    );
+
+    expect(await reviewStore.getItem(item!.id)).toMatchObject({ status: "approved", title: item!.title, tags: item!.tags, edited: false });
+    const actions = (await db.select().from(reviewEvents).where(eq(reviewEvents.itemId, item!.id))).map((e) => e.action);
+    expect(actions).toEqual(["approve"]);
+  });
+
+  it("rolls back a merge that includes an item approved meanwhile", async () => {
+    const [first, second] = await queue();
+    const before = await db.select({ id: items.id }).from(items);
+    await review.approve([first!.id]);
+
+    await expect(review.merge([first!.id, second!.id])).rejects.toBeInstanceOf(ReviewError);
+    expect(await db.select({ id: items.id }).from(items)).toHaveLength(before.length);
+    expect((await reviewStore.getItem(first!.id))!.status).toBe("approved");
+    expect((await reviewStore.getItem(second!.id))!.status).toBe("pending");
+  });
+
+  it("lets exactly one of a concurrent merge and approval win", async () => {
+    for (let round = 0; round < 5; round++) {
+      await truncateAll(db);
+      const [first, second] = await queue();
+      const [merge, approve] = await Promise.allSettled([review.merge([first!.id, second!.id]), review.approve([first!.id])]);
+
+      const status = (await reviewStore.getItem(first!.id))!.status;
+      if (status === "merged") {
+        expect(merge.status).toBe("fulfilled");
+        expect(approve).toEqual({ status: "fulfilled", value: [] });
+      } else {
+        expect(status).toBe("approved");
+        expect(merge.status).toBe("rejected");
+        expect((await reviewStore.getItem(second!.id))!.status).toBe("pending");
+      }
+    }
   });
 });
