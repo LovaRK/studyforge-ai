@@ -1,7 +1,8 @@
 import { and, arrayContains, asc, eq, gt, isNull, lte, notInArray, or, sql, type SQL } from "drizzle-orm";
-import type { CardState, FlashcardCounts, GradeRecord, SrsStore, StudyScope } from "@/application/ports/flashcards";
+import type { CardState, FlashcardCounts, GradeRecord, RecordOutcome, SrsStore, StudyScope } from "@/application/ports/flashcards";
 import type { Database } from "@/infrastructure/db/client";
 import { cardReviews, items, srsCards } from "@/infrastructure/db/schema";
+import { sessionAcceptsAnswer } from "./study-session-guard";
 
 /** Approved items within a study scope. Shared with the study-session store. */
 export function approvedInScope(scope: StudyScope): SQL {
@@ -106,7 +107,7 @@ export class DrizzleSrsStore implements SrsStore {
     return { due: cards!.due, new: cards!.new, nextDueAt: cards!.nextDueAt, reviewedSince: reviews!.count };
   }
 
-  async record(review: GradeRecord): Promise<boolean> {
+  async record(review: GradeRecord): Promise<RecordOutcome> {
     const { itemId, next, reviewedAt } = review;
     const values = {
       easeFactor: next.easeFactor,
@@ -116,26 +117,34 @@ export class DrizzleSrsStore implements SrsStore {
       dueAt: next.dueAt,
       lastReviewedAt: reviewedAt,
     };
-    const approved = sql`exists (select 1 from ${items} where ${items.id} = ${itemId} and ${items.status} = 'approved')`;
 
     return this.db.transaction(async (tx) => {
-      // The check and the write are one statement each, so two grades of the
-      // same showing cannot both pass.
+      // Lock order (item, then session) matches the quiz store, so the two cannot deadlock.
+      // The share lock keeps the item approved until this grade commits.
+      const [item] = await tx
+        .select({ id: items.id, tags: items.tags, sourceId: items.sourceId })
+        .from(items)
+        .where(and(eq(items.id, itemId), eq(items.status, "approved")))
+        .for("share");
+      if (!item) return "not-approved";
+      if (review.sessionId && !(await sessionAcceptsAnswer(tx, review.sessionId, item, reviewedAt))) return "session-closed";
+
+      // The showing check and the write are one statement each, so two grades of
+      // the same showing cannot both pass.
       const written =
         review.expectedLastReviewedAt === null
           ? // First review: create the card unless a concurrent first review already did.
             await tx.execute(sql`
               insert into ${srsCards} (item_id, ease_factor, interval_days, repetitions, lapses, due_at, last_reviewed_at)
-              select ${itemId}, ${values.easeFactor}, ${values.intervalDays}, ${values.repetitions}, ${values.lapses}, ${at(values.dueAt)}, ${at(values.lastReviewedAt)}
-              where ${approved}
+              values (${itemId}, ${values.easeFactor}, ${values.intervalDays}, ${values.repetitions}, ${values.lapses}, ${at(values.dueAt)}, ${at(values.lastReviewedAt)})
               on conflict (item_id) do nothing
               returning item_id`)
           : await tx
               .update(srsCards)
               .set(values)
-              .where(and(eq(srsCards.itemId, itemId), eq(srsCards.lastReviewedAt, review.expectedLastReviewedAt), approved))
+              .where(and(eq(srsCards.itemId, itemId), eq(srsCards.lastReviewedAt, review.expectedLastReviewedAt)))
               .returning({ itemId: srsCards.itemId });
-      if (written.length === 0) return false;
+      if (written.length === 0) return "stale";
 
       await tx.insert(cardReviews).values({
         itemId,
@@ -145,7 +154,7 @@ export class DrizzleSrsStore implements SrsStore {
         easeFactor: next.easeFactor,
         reviewedAt,
       });
-      return true;
+      return "recorded";
     });
   }
 }

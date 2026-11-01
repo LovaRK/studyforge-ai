@@ -16,7 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { ITEM_STATUSES, ITEM_TYPES, REVIEW_ACTIONS } from "@/domain/items/item";
-import { GRADES, SESSION_SCOPES, type QuizOption } from "@/domain/study/types";
+import { GRADES, SESSION_END_REASONS, SESSION_SCOPES, type QuizOption } from "@/domain/study/types";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -235,16 +235,23 @@ export const quizAttempts = pgTable(
 );
 
 export const sessionScope = pgEnum("session_scope", SESSION_SCOPES);
+export const sessionEndReason = pgEnum("session_end_reason", SESSION_END_REASONS);
 
 /** A focused, time-boxed study run over a tag, a source or everything. */
-export const studySessions = pgTable("study_sessions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  scope: sessionScope("scope").notNull(),
-  scopeValue: text("scope_value"),
-  plannedMinutes: integer("planned_minutes").notNull(),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
-});
+export const studySessions = pgTable(
+  "study_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scope: sessionScope("scope").notNull(),
+    scopeValue: text("scope_value"),
+    plannedMinutes: integer("planned_minutes").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    /** Stored when the session ends, so its outcome never changes on a later visit. */
+    endReason: sessionEndReason("end_reason"),
+  },
+  (table) => [check("study_sessions_end_reason", sql`(${table.endedAt} is null) = (${table.endReason} is null)`)],
+);
 
 /** Audit trail of review decisions, for the understanding dashboard. */
 export const reviewEvents = pgTable("review_events", {

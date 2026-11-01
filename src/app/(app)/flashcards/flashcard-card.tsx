@@ -43,6 +43,8 @@ export function FlashcardCard({ card, sessionId, onGraded }: Props) {
         const result = await gradeCardAction({ itemId: card.itemId, grade: value, version: card.version, sessionId });
         if (!result.ok) {
           setError(result.error);
+          // In a session the usual cause is that it ended (time, Finish in another tab): show its summary.
+          if (sessionId) router.refresh();
           return;
         }
         if (onGraded) onGraded();

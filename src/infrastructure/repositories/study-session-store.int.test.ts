@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { makeFlashcards } from "@/application/flashcards/flashcards";
+import { FlashcardError, makeFlashcards } from "@/application/flashcards/flashcards";
 import { makeReview } from "@/application/review/review";
 import { makeStudySessions, StudySessionError } from "@/application/study-session/study-session";
 import { cardReviews, quizAttempts, quizQuestions, studySessions } from "@/infrastructure/db/schema";
@@ -111,5 +111,94 @@ describe("study sessions on Postgres", () => {
     await expect(sessions.start({ scope: "all" }, 2.5)).rejects.toThrow(StudySessionError);
     await expect(sessions.start({ scope: "tag" }, 10)).rejects.toThrow(StudySessionError);
     await expect(sessions.next("00000000-0000-4000-8000-000000000000")).rejects.toThrow(StudySessionError);
+  });
+
+  it("keeps its outcome on later visits, even when cards become due again", async () => {
+    const { queues } = await approveAll();
+    const id = await sessions.start({ scope: "source", value: queues.source.id }, 30);
+    for (let i = 0; i < 2; i++) {
+      const step = await sessions.next(id);
+      if (step.kind !== "card") throw new Error("expected a card");
+      await flashcards.grade({ itemId: step.card.itemId, grade: "again", version: step.card.version, sessionId: id });
+    }
+    expect(await sessions.next(id)).toMatchObject({ kind: "done", reason: "empty" });
+
+    // Two days later both cards are due, but the session ended because nothing was left.
+    clock = new Date(START.getTime() + 2 * 86_400_000);
+    expect(await sessions.next(id)).toMatchObject({ kind: "done", reason: "empty", summary: { reviewed: 2 } });
+    const [row] = await db.select().from(studySessions).where(eq(studySessions.id, id));
+    expect(row!.endReason).toBe("empty");
+  });
+
+  it("refuses answers after the deadline or after Finish, and leaves the summary as it was", async () => {
+    await approveAll();
+    const late = await sessions.start({ scope: "all" }, 5);
+    const shown = await sessions.next(late);
+    if (shown.kind !== "card") throw new Error("expected a card");
+
+    // The tab stayed open past the deadline; the session has not been visited since.
+    clock = new Date(START.getTime() + 6 * 60_000);
+    await expect(
+      flashcards.grade({ itemId: shown.card.itemId, grade: "good", version: shown.card.version, sessionId: late }),
+    ).rejects.toThrow("This study session has ended");
+
+    const finished = await sessions.start({ scope: "all" }, 30);
+    const card = await sessions.next(finished);
+    if (card.kind !== "card") throw new Error("expected a card");
+    await sessions.finish(finished);
+    await expect(
+      flashcards.grade({ itemId: card.card.itemId, grade: "good", version: card.card.version, sessionId: finished }),
+    ).rejects.toThrow(FlashcardError);
+
+    expect(await db.select().from(cardReviews)).toEqual([]);
+    expect(await sessions.next(finished)).toMatchObject({ kind: "done", reason: "finished", summary: { reviewed: 0 } });
+  });
+
+  it("refuses an item outside the session's selection, or one it already studied", async () => {
+    const { memory, queues } = await approveAll();
+    const id = await sessions.start({ scope: "source", value: queues.source.id }, 30);
+    const outside = pick(memory.items, "weak reference");
+    await expect(flashcards.grade({ itemId: outside.id, grade: "good", version: null, sessionId: id })).rejects.toThrow(FlashcardError);
+
+    const step = await sessions.next(id);
+    if (step.kind !== "card") throw new Error("expected a card");
+    await flashcards.grade({ itemId: step.card.itemId, grade: "again", version: step.card.version, sessionId: id });
+    // Ten minutes later the card is due again, with a new showing, but the session already studied it.
+    clock = new Date(START.getTime() + 11 * 60_000);
+    const [again] = await db.select({ at: cardReviews.reviewedAt }).from(cardReviews);
+    await expect(
+      flashcards.grade({ itemId: step.card.itemId, grade: "good", version: again!.at.toISOString(), sessionId: id }),
+    ).rejects.toThrow(FlashcardError);
+    expect(await db.select().from(cardReviews)).toHaveLength(1);
+  });
+
+  it("serialises answers with Finish: every recorded answer lands before the session ended", async () => {
+    await approveAll();
+    for (let round = 0; round < 5; round++) {
+      const id = await sessions.start({ scope: "all" }, 30);
+      const step = await sessions.next(id);
+      if (step.kind !== "card") throw new Error("expected a card");
+      clock = new Date(clock.getTime() + 1000);
+      await Promise.allSettled([
+        flashcards.grade({ itemId: step.card.itemId, grade: "good", version: step.card.version, sessionId: id }),
+        sessions.finish(id),
+      ]);
+      const done = await sessions.next(id);
+      const recorded = await db.select().from(cardReviews).where(eq(cardReviews.sessionId, id));
+      expect(done).toMatchObject({ kind: "done", reason: "finished", summary: { reviewed: recorded.length } });
+      // Reset the card so the next round can show it as new again.
+      await db.execute(sql`truncate card_reviews, srs_cards`);
+    }
+  });
+
+  it("stores an end reason exactly when the session has ended", async () => {
+    const id = await sessions.start({ scope: "all" }, 5);
+    await expect(db.update(studySessions).set({ endedAt: clock }).where(eq(studySessions.id, id))).rejects.toThrow();
+    await sessions.finish(id);
+    const ended = await db
+      .select()
+      .from(studySessions)
+      .where(and(eq(studySessions.id, id), isNotNull(studySessions.endReason)));
+    expect(ended).toHaveLength(1);
   });
 });

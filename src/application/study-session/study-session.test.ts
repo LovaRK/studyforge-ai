@@ -9,29 +9,31 @@ const minutes = (n: number) => new Date(START.getTime() + n * 60_000);
 const card = { itemId: "i1" } as FlashcardView;
 
 function setup(options: { cardsLeft: boolean }) {
+  const state = { cardsLeft: options.cardsLeft };
   let clock = START;
   const sessions = new Map<string, StudySessionRecord>();
   const calls: { scope: StudyScope; exclude: string[] }[] = [];
   const store: StudySessionStore = {
     async start(session) {
-      sessions.set("s1", { ...session, id: "s1", endedAt: null });
+      sessions.set("s1", { ...session, id: "s1", endedAt: null, endReason: null });
       return "s1";
     },
     get: async (id) => sessions.get(id) ?? null,
-    async end(id, endedAt) {
+    async end(id, endedAt, reason) {
       const session = sessions.get(id)!;
-      session.endedAt ??= endedAt;
+      if (!session.endedAt) Object.assign(session, { endedAt, endReason: reason });
+      return { ...session };
     },
     activity: async () => ({ cards: { again: 0, hard: 0, good: 1, easy: 0 }, quiz: { answered: 2, correct: 1 }, seenItemIds: ["seen"] }),
   };
   const flashcards = {
     async next(scope: StudyScope, exclude: string[] = []) {
       calls.push({ scope, exclude });
-      return { card: options.cardsLeft ? card : null, counts: { due: 0, new: 0, reviewedSince: 0, nextDueAt: null } };
+      return { card: state.cardsLeft ? card : null, counts: { due: 0, new: 0, reviewedSince: 0, nextDueAt: null } };
     },
   };
   const api = makeStudySessions({ store, flashcards, now: () => clock });
-  return { api, sessions, calls, at: (date: Date) => (clock = date) };
+  return { api, sessions, calls, state, at: (date: Date) => (clock = date) };
 }
 
 describe("study sessions", () => {
@@ -57,11 +59,15 @@ describe("study sessions", () => {
     const id = await empty.api.start({ scope: "all" }, 15);
     empty.at(minutes(2));
     expect(await empty.api.next(id)).toMatchObject({ kind: "done", reason: "empty" });
+    // Cards becoming due later does not rewrite how the session ended.
+    empty.state.cardsLeft = true;
     expect(await empty.api.next(id)).toMatchObject({ kind: "done", reason: "empty" });
 
     const early = setup({ cardsLeft: true });
     const other = await early.api.start({ scope: "all" }, 15);
     await early.api.finish(other);
+    expect(await early.api.next(other)).toMatchObject({ kind: "done", reason: "finished" });
+    early.state.cardsLeft = false;
     expect(await early.api.next(other)).toMatchObject({ kind: "done", reason: "finished" });
   });
 

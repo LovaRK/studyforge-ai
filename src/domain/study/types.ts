@@ -59,3 +59,7 @@ export function isVerbatimSourceOption(option: SourceQuizOption, sourceText: str
 /** What a focused study session draws from. */
 export const SESSION_SCOPES = ["all", "tag", "source"] as const;
 export type SessionScope = (typeof SESSION_SCOPES)[number];
+
+/** Why a study session ended: its time ran out, the owner finished it, or nothing was left to study. */
+export const SESSION_END_REASONS = ["time", "finished", "empty"] as const;
+export type SessionEndReason = (typeof SESSION_END_REASONS)[number];

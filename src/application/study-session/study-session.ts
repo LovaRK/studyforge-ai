@@ -62,30 +62,25 @@ export function makeStudySessions({ store, flashcards, now = () => new Date() }:
       const at = now();
       const endsAt = new Date(session.startedAt.getTime() + session.plannedMinutes * 60_000);
       const summary = await summarize(session);
-      const scope: StudyScope =
-        session.scope === "all" ? { scope: "all" } : { scope: session.scope, value: session.scopeValue ?? undefined };
-
-      if (session.endedAt) {
-        // The reason is derived, not stored, so revisiting a session always tells the same story.
-        if (session.endedAt >= endsAt) return { kind: "done", reason: "time", summary };
-        const { card } = await flashcards.next(scope, summary.activity.seenItemIds);
-        return { kind: "done", reason: card ? "finished" : "empty", summary };
-      }
+      // The outcome is stored when the session ends, so a later visit always tells the same story.
+      if (session.endedAt) return { kind: "done", reason: session.endReason!, summary };
 
       const done = async (reason: "time" | "empty") => {
-        const endedAt = reason === "time" ? endsAt : at;
-        await store.end(id, endedAt);
-        return { kind: "done" as const, reason, summary: { ...summary, session: { ...session, endedAt } } };
+        const ended = (await store.end(id, reason === "time" ? endsAt : at, reason)) ?? session;
+        // A concurrent request may have ended it first; its reason and activity stand.
+        return { kind: "done" as const, reason: ended.endReason ?? reason, summary: await summarize(ended) };
       };
       if (at >= endsAt) return done("time");
 
+      const scope: StudyScope =
+        session.scope === "all" ? { scope: "all" } : { scope: session.scope, value: session.scopeValue ?? undefined };
       const { card } = await flashcards.next(scope, summary.activity.seenItemIds);
       return card ? { kind: "card", card, endsAt, summary } : done("empty");
     },
 
     async finish(id: string): Promise<void> {
       await load(id);
-      await store.end(id, now());
+      await store.end(id, now(), "finished");
     },
   };
 }

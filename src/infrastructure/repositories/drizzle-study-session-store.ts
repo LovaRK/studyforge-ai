@@ -1,13 +1,13 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { SessionActivity, StudySessionRecord, StudySessionStore } from "@/application/ports/study-session";
-import { GRADES, type Grade } from "@/domain/study/types";
+import { GRADES, type Grade, type SessionEndReason } from "@/domain/study/types";
 import type { Database } from "@/infrastructure/db/client";
 import { cardReviews, quizAttempts, studySessions } from "@/infrastructure/db/schema";
 
 export class DrizzleStudySessionStore implements StudySessionStore {
   constructor(private readonly db: Database) {}
 
-  async start(session: Omit<StudySessionRecord, "id" | "endedAt">): Promise<string> {
+  async start(session: Omit<StudySessionRecord, "id" | "endedAt" | "endReason">): Promise<string> {
     const [row] = await this.db.insert(studySessions).values(session).returning({ id: studySessions.id });
     return row!.id;
   }
@@ -17,11 +17,13 @@ export class DrizzleStudySessionStore implements StudySessionStore {
     return row ?? null;
   }
 
-  async end(id: string, endedAt: Date): Promise<void> {
+  async end(id: string, endedAt: Date, reason: SessionEndReason): Promise<StudySessionRecord | null> {
     await this.db
       .update(studySessions)
-      .set({ endedAt })
+      .set({ endedAt, endReason: reason })
       .where(and(eq(studySessions.id, id), isNull(studySessions.endedAt)));
+    // Read back: if another request ended it first, its reason stands.
+    return this.get(id);
   }
 
   async activity(id: string): Promise<SessionActivity> {

@@ -32,11 +32,19 @@ test("a focused study session over one source: timed, each card once, with a sum
   const progress = page.getByTestId("session-progress");
   await expect(progress).toHaveText("Source: error-handling · 0 done");
 
-  // Grade one card, then finish early.
+  // Grade one card, then finish the session from a second tab.
   await page.keyboard.press("Space");
   await page.keyboard.press("3");
   await expect(progress).toHaveText("Source: error-handling · 1 done");
-  await page.getByRole("button", { name: "Finish" }).click();
+  const other = await page.context().newPage();
+  await other.goto(page.url());
+  await other.getByRole("button", { name: "Finish" }).click();
+  await expect(other.getByRole("heading", { name: "Session finished" })).toBeVisible();
+  await other.close();
+
+  // The first tab's late answer is refused and it shows the unchanged summary.
+  await page.getByRole("button", { name: "Show answer" }).click();
+  await page.getByRole("button", { name: /^Good/ }).click();
   await expect(page.getByRole("heading", { name: "Session finished" })).toBeVisible();
   await expect(page.getByLabel("Session summary")).toContainText("Studied1");
   await expect(page.getByLabel("Session summary")).toContainText("Good1");
