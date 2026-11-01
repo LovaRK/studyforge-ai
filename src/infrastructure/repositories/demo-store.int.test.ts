@@ -24,3 +24,16 @@ it("creates one demo source under concurrent loads", async () => {
   expect(new Set(results.map((result) => result.id))).toHaveLength(1);
   expect(await db.select().from(sources)).toHaveLength(1);
 });
+
+it("does not mistake an unrelated upload with the same filename for the demo", async () => {
+  const shared = { title: "Demo", attribution: "Original", fileName: "studyforge-demo-swift.md", mimeType: "text/markdown", wordCount: 4 };
+  await store.ensureSource({ ...shared, text: "An unrelated owner upload." }, [
+    { ordinal: 0, heading: null, start: 0, end: 26, wordCount: 4 },
+  ]);
+  const demo = await store.ensureSource({ ...shared, text: "The original demo note." }, [
+    { ordinal: 0, heading: null, start: 0, end: 23, wordCount: 4 },
+  ]);
+
+  expect(demo.text).toBe("The original demo note.");
+  expect(await db.select().from(sources)).toHaveLength(2);
+});
