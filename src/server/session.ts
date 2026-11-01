@@ -2,6 +2,7 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getEnv } from "@/config/env";
+import { clientKeyFromForwardedFor } from "@/infrastructure/auth/client-key";
 import { SESSION_COOKIE, verifySessionToken } from "@/infrastructure/auth/session-token";
 
 export async function isSignedIn(): Promise<boolean> {
@@ -31,8 +32,7 @@ export async function clearSessionCookie(): Promise<void> {
   (await cookies()).delete(SESSION_COOKIE);
 }
 
-/** Key for login rate limiting: the first forwarded client address. */
+/** Key for login rate limiting: the address our proxy saw, which the client can't spoof. */
 export async function clientKey(): Promise<string> {
-  const forwarded = (await headers()).get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || "local";
+  return clientKeyFromForwardedFor((await headers()).get("x-forwarded-for"));
 }

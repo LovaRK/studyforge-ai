@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { clientKeyFromForwardedFor } from "./client-key";
 import { MemoryLoginRateLimiter } from "./memory-rate-limiter";
 import { ScryptPasswordHasher } from "./scrypt-password-hasher";
 import { createSessionToken, verifySessionToken } from "./session-token";
@@ -68,5 +69,26 @@ describe("MemoryLoginRateLimiter", () => {
     limiter.recordFailure("ip", NOW);
     limiter.reset("ip");
     expect(limiter.check("ip", NOW).allowed).toBe(true);
+  });
+});
+
+describe("clientKeyFromForwardedFor", () => {
+  it("uses the address appended by our proxy, not one the client sent", () => {
+    expect(clientKeyFromForwardedFor("203.0.113.7")).toBe("203.0.113.7");
+    expect(clientKeyFromForwardedFor("1.2.3.4, 203.0.113.7")).toBe("203.0.113.7");
+    expect(clientKeyFromForwardedFor(" 9.9.9.9 ,  203.0.113.7 ")).toBe("203.0.113.7");
+  });
+
+  it("falls back to one local bucket without a usable header", () => {
+    expect(clientKeyFromForwardedFor(null)).toBe("local");
+    expect(clientKeyFromForwardedFor("")).toBe("local");
+    expect(clientKeyFromForwardedFor("1.2.3.4, ")).toBe("local");
+  });
+
+  it("keeps a spoofing client in one bucket however it rotates the header", () => {
+    const limiter = new MemoryLoginRateLimiter({ maxFailures: 2, windowSeconds: 60 });
+    for (const spoofed of ["10.0.0.1", "10.0.0.2", "10.0.0.3"])
+      limiter.recordFailure(clientKeyFromForwardedFor(`${spoofed}, 203.0.113.7`), NOW);
+    expect(limiter.check(clientKeyFromForwardedFor("10.0.0.4, 203.0.113.7"), NOW).allowed).toBe(false);
   });
 });
