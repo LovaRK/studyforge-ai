@@ -38,7 +38,16 @@ export class InMemoryStudyDb implements SourceStore, ExtractionStore, LlmCache, 
     const record = { ...source, id: this.id("source"), createdAt: new Date() };
     this.sources.push(record);
     for (const c of chunks) {
-      this.chunks.push({ id: this.id("chunk"), sourceId: record.id, ordinal: c.ordinal, start: c.start, end: c.end, attempts: 0, status: "pending", lastError: null });
+      this.chunks.push({
+        id: this.id("chunk"),
+        sourceId: record.id,
+        ordinal: c.ordinal,
+        start: c.start,
+        end: c.end,
+        attempts: 0,
+        status: "pending",
+        lastError: null,
+      });
     }
     return record;
   }
@@ -159,7 +168,14 @@ export class InMemoryStudyDb implements SourceStore, ExtractionStore, LlmCache, 
 
   async merge(ids: string[], fields: GeneratedFields & { tags: string[] }) {
     const parts = ids.map((id) => this.items.find((i) => i.id === id)!);
-    const merged: ItemView = { ...parts[0]!, ...fields, id: this.id("item"), edited: true, status: "pending", excerpts: parts.flatMap((p) => p.excerpts) };
+    const merged: ItemView = {
+      ...parts[0]!,
+      ...fields,
+      id: this.id("item"),
+      edited: true,
+      status: "pending",
+      excerpts: parts.flatMap((p) => p.excerpts),
+    };
     this.items.push(merged);
     for (const p of parts) {
       p.status = "merged";

@@ -40,9 +40,9 @@ describe("GeminiProvider", () => {
   const options = { apiKey: "test-key", model: "test-model" };
 
   it("sends the key in a header and parses the JSON answer", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      jsonResponse(200, { candidates: [{ content: { parts: [{ text: '{"items":[{"term":"COW"}]}' }] } }] }),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse(200, { candidates: [{ content: { parts: [{ text: '{"items":[{"term":"COW"}]}' }] } }] }));
     const provider = new GeminiProvider(options, fetchMock);
 
     expect(await provider.generateJson(request)).toEqual({ items: [{ term: "COW" }] });

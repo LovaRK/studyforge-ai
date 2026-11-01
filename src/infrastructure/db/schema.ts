@@ -2,11 +2,13 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   index,
   integer,
   jsonb,
   pgEnum,
   pgTable,
+  real,
   smallint,
   text,
   timestamp,
@@ -14,6 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { ITEM_STATUSES, ITEM_TYPES, REVIEW_ACTIONS } from "@/domain/items/item";
+import { GRADES, SESSION_SCOPES, type QuizOption } from "@/domain/study/types";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -142,6 +145,106 @@ export const rejectedExtractions = pgTable("rejected_extractions", {
 });
 
 export const reviewAction = pgEnum("review_action", REVIEW_ACTIONS);
+
+/** Postgres full-text vector. */
+const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
+
+/**
+ * Full-text search document for an approved item: its generated wording plus its
+ * verbatim excerpts. Written by the library code whenever an approved item changes.
+ */
+export const itemSearch = pgTable(
+  "item_search",
+  {
+    itemId: uuid("item_id")
+      .primaryKey()
+      .references(() => items.id, { onDelete: "cascade" }),
+    document: tsvector("document").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("item_search_document").using("gin", table.document)],
+);
+
+export const grade = pgEnum("grade", GRADES);
+
+/** SM-2 state, one row per approved item that has entered flashcard study. */
+export const srsCards = pgTable(
+  "srs_cards",
+  {
+    itemId: uuid("item_id")
+      .primaryKey()
+      .references(() => items.id, { onDelete: "cascade" }),
+    easeFactor: real("ease_factor").notNull().default(2.5),
+    intervalDays: integer("interval_days").notNull().default(0),
+    repetitions: integer("repetitions").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull().defaultNow(),
+    lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
+  },
+  (table) => [index("srs_cards_due").on(table.dueAt)],
+);
+
+/** Every flashcard answer, for streaks, accuracy and mastery. */
+export const cardReviews = pgTable(
+  "card_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").references(() => studySessions.id, { onDelete: "set null" }),
+    grade: grade("grade").notNull(),
+    intervalDays: integer("interval_days").notNull(),
+    easeFactor: real("ease_factor").notNull(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("card_reviews_item").on(table.itemId), index("card_reviews_reviewed_at").on(table.reviewedAt)],
+);
+
+/** A multiple-choice question built only from approved items. Options are `QuizOption[]`. */
+export const quizQuestions = pgTable(
+  "quiz_questions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    prompt: text("prompt").notNull(),
+    options: jsonb("options").$type<QuizOption[]>().notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [index("quiz_questions_item").on(table.itemId)],
+);
+
+export const quizAttempts = pgTable(
+  "quiz_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => quizQuestions.id, { onDelete: "cascade" }),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").references(() => studySessions.id, { onDelete: "set null" }),
+    chosenIndex: integer("chosen_index").notNull(),
+    correct: boolean("correct").notNull(),
+    answeredAt: timestamp("answered_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("quiz_attempts_item").on(table.itemId), index("quiz_attempts_answered_at").on(table.answeredAt)],
+);
+
+export const sessionScope = pgEnum("session_scope", SESSION_SCOPES);
+
+/** A focused, time-boxed study run over a tag, a source or everything. */
+export const studySessions = pgTable("study_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scope: sessionScope("scope").notNull(),
+  scopeValue: text("scope_value"),
+  plannedMinutes: integer("planned_minutes").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+});
 
 /** Audit trail of review decisions, for the understanding dashboard. */
 export const reviewEvents = pgTable("review_events", {

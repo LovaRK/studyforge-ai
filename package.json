@@ -16,7 +16,8 @@
     "db:down": "node --env-file=.env.local scripts/db.mjs down",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
-    "test:int": "vitest run --project integration"
+    "test:int": "vitest run --project integration",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",

@@ -122,14 +122,13 @@ export class DrizzleReviewStore implements ReviewStore {
         })),
       );
 
+      await tx.update(items).set({ status: "merged", mergedIntoId: merged!.id, reviewedAt: new Date() }).where(inArray(items.id, ids));
       await tx
-        .update(items)
-        .set({ status: "merged", mergedIntoId: merged!.id, reviewedAt: new Date() })
-        .where(inArray(items.id, ids));
-      await tx.insert(reviewEvents).values([
-        ...ids.map((id) => ({ itemId: id, action: "merge" as const, details: { mergedInto: merged!.id } })),
-        { itemId: merged!.id, action: "merge" as const, details: { mergedFrom: ids } },
-      ]);
+        .insert(reviewEvents)
+        .values([
+          ...ids.map((id) => ({ itemId: id, action: "merge" as const, details: { mergedInto: merged!.id } })),
+          { itemId: merged!.id, action: "merge" as const, details: { mergedFrom: ids } },
+        ]);
       return merged!.id;
     });
   }

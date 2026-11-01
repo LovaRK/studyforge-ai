@@ -146,7 +146,10 @@ export function ReviewQueue({ queue, selected, context, tags, sources, filters }
       )}
 
       {checked.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-subtle px-3 py-2 text-sm" aria-label="Bulk actions">
+        <div
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-subtle px-3 py-2 text-sm"
+          aria-label="Bulk actions"
+        >
           <span className="font-medium">{checked.size} selected</span>
           <button type="button" className={buttonClass.primary} disabled={pending} onClick={() => decide("approve", [...checked])}>
             Approve selected
@@ -165,7 +168,9 @@ export function ReviewQueue({ queue, selected, context, tags, sources, filters }
 
       {queue.length === 0 || !selected ? (
         <EmptyState title="Nothing to review">
-          {filters.type || filters.tag || filters.source ? "No items match these filters." : "Upload a source and run extraction to fill the queue."}
+          {filters.type || filters.tag || filters.source
+            ? "No items match these filters."
+            : "Upload a source and run extraction to fill the queue."}
         </EmptyState>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)_minmax(0,1fr)]">
@@ -200,7 +205,12 @@ export function ReviewQueue({ queue, selected, context, tags, sources, filters }
             tagInputRef={tagInputRef}
             onEdit={() => setEditing(true)}
             onCancelEdit={() => setEditing(false)}
-            onSave={(fields) => perform(() => editAction(selected.id, fields), () => setEditing(false))}
+            onSave={(fields) =>
+              perform(
+                () => editAction(selected.id, fields),
+                () => setEditing(false),
+              )
+            }
             onTags={(next) => perform(() => tagAction(selected.id, next))}
             onApprove={() => decide("approve", [selected.id])}
             onDiscard={() => decide("discard", [selected.id])}
@@ -211,8 +221,8 @@ export function ReviewQueue({ queue, selected, context, tags, sources, filters }
       )}
 
       <p className="text-xs text-muted">
-        Shortcuts: <kbd>j</kbd>/<kbd>k</kbd> next/previous · <kbd>a</kbd> approve · <kbd>d</kbd> discard · <kbd>e</kbd> edit · <kbd>t</kbd> tag ·{" "}
-        <kbd>x</kbd> select · <kbd>m</kbd> merge selected
+        Shortcuts: <kbd>j</kbd>/<kbd>k</kbd> next/previous · <kbd>a</kbd> approve · <kbd>d</kbd> discard · <kbd>e</kbd> edit · <kbd>t</kbd>{" "}
+        tag · <kbd>x</kbd> select · <kbd>m</kbd> merge selected
       </p>
     </div>
   );
@@ -232,7 +242,12 @@ function Filters({
   const selectClass = `${inputClass} w-auto`;
   return (
     <div className="flex flex-wrap gap-2" aria-label="Filters">
-      <select aria-label="Filter by type" className={selectClass} value={filters.type ?? ""} onChange={(e) => onChange({ type: e.target.value || undefined })}>
+      <select
+        aria-label="Filter by type"
+        className={selectClass}
+        value={filters.type ?? ""}
+        onChange={(e) => onChange({ type: e.target.value || undefined })}
+      >
         <option value="">All types</option>
         {ITEM_TYPES.map((type) => (
           <option key={type} value={type}>
@@ -240,7 +255,12 @@ function Filters({
           </option>
         ))}
       </select>
-      <select aria-label="Filter by tag" className={selectClass} value={filters.tag ?? ""} onChange={(e) => onChange({ tag: e.target.value || undefined })}>
+      <select
+        aria-label="Filter by tag"
+        className={selectClass}
+        value={filters.tag ?? ""}
+        onChange={(e) => onChange({ tag: e.target.value || undefined })}
+      >
         <option value="">All tags</option>
         {tags.map((tag) => (
           <option key={tag} value={tag}>
@@ -328,9 +348,19 @@ function ItemPanel({
             <label key={field} className="block space-y-1 text-sm">
               <span className="font-medium capitalize">{field}</span>
               {field === "title" ? (
-                <input className={inputClass} value={draft[field]} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} autoFocus />
+                <input
+                  className={inputClass}
+                  value={draft[field]}
+                  onChange={(e) => setDraft({ ...draft, [field]: e.target.value })}
+                  autoFocus
+                />
               ) : (
-                <textarea className={inputClass} rows={field === "question" ? 2 : 4} value={draft[field]} onChange={(e) => setDraft({ ...draft, [field]: e.target.value })} />
+                <textarea
+                  className={inputClass}
+                  rows={field === "question" ? 2 : 4}
+                  value={draft[field]}
+                  onChange={(e) => setDraft({ ...draft, [field]: e.target.value })}
+                />
               )}
             </label>
           ))}
@@ -380,7 +410,12 @@ function ItemPanel({
           {item.tags.map((tag) => (
             <span key={tag} className="inline-flex items-center gap-1 rounded border border-line bg-subtle px-1.5 py-0.5 text-xs">
               {tag}
-              <button type="button" aria-label={`Remove tag ${tag}`} className="text-muted hover:text-danger" onClick={() => onTags(item.tags.filter((t) => t !== tag))}>
+              <button
+                type="button"
+                aria-label={`Remove tag ${tag}`}
+                className="text-muted hover:text-danger"
+                onClick={() => onTags(item.tags.filter((t) => t !== tag))}
+              >
                 ×
               </button>
             </span>

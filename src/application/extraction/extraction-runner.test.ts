@@ -27,10 +27,13 @@ const responder: MockResponder = ({ prompt }) => {
 async function setup(llmResponder: MockResponder = responder, options: Partial<ExtractionRunnerOptions> = {}) {
   const db = new InMemoryStudyDb();
   // Two chunks: one per question.
-  const source = await db.create({ title: "Notes", attribution: null, fileName: "n.txt", mimeType: "text/plain", text: TEXT, wordCount: 30 }, [
-    { ordinal: 0, heading: null, start: 0, end: TEXT.indexOf("Q: What is a retain"), wordCount: 15 },
-    { ordinal: 1, heading: null, start: TEXT.indexOf("Q: What is a retain"), end: TEXT.length, wordCount: 15 },
-  ]);
+  const source = await db.create(
+    { title: "Notes", attribution: null, fileName: "n.txt", mimeType: "text/plain", text: TEXT, wordCount: 30 },
+    [
+      { ordinal: 0, heading: null, start: 0, end: TEXT.indexOf("Q: What is a retain"), wordCount: 15 },
+      { ordinal: 1, heading: null, start: TEXT.indexOf("Q: What is a retain"), end: TEXT.length, wordCount: 15 },
+    ],
+  );
   const llm = new MockLlmProvider(llmResponder);
   const sleeps: number[] = [];
   let clock = 0;
@@ -110,7 +113,9 @@ describe("ExtractionRunner", () => {
 
   it("marks a chunk failed on bad model output and carries on with the next", async () => {
     let calls = 0;
-    const { db, run } = await setup((request) => (++calls <= 2 ? new LlmResponseError("not JSON") : responder(request)), { maxAttempts: 2 });
+    const { db, run } = await setup((request) => (++calls <= 2 ? new LlmResponseError("not JSON") : responder(request)), {
+      maxAttempts: 2,
+    });
     await run();
     expect(db.chunks.map((c) => c.status)).toEqual(["failed", "done"]);
     expect(db.chunks[0]!.lastError).toBe("not JSON");

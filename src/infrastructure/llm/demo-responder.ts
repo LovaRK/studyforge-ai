@@ -13,7 +13,11 @@ export const demoResponder: MockResponder = ({ prompt }) => {
     .filter((s) => s.split(" ").length >= 6 && !/[`{}=]/.test(s));
 
   const items = sentences.slice(0, 4).map((sentence, i) => {
-    const title = sentence.split(" ").slice(0, 5).join(" ").replace(/[,:;]$/, "");
+    const title = sentence
+      .split(" ")
+      .slice(0, 5)
+      .join(" ")
+      .replace(/[,:;]$/, "");
     return {
       type: i === 0 ? "concept" : "term",
       title,

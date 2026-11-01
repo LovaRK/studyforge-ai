@@ -31,7 +31,15 @@ const reviewStore = new DrizzleReviewStore(db);
 const review = makeReview(reviewStore);
 
 function runner(llm: MockLlmProvider) {
-  return new ExtractionRunner({ sources, store: extraction, cache, llm, model: "mock", logger: createLogger({}, () => {}), options: { requestsPerMinute: 0 } });
+  return new ExtractionRunner({
+    sources,
+    store: extraction,
+    cache,
+    llm,
+    model: "mock",
+    logger: createLogger({}, () => {}),
+    options: { requestsPerMinute: 0 },
+  });
 }
 
 async function importNote(maxWordsPerChunk = 40) {
