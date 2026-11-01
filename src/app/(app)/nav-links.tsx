@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/sources", label: "Sources" },
   { href: "/review", label: "Review" },
   { href: "/library", label: "Library" },
+  { href: "/flashcards", label: "Flashcards" },
 ];
 
 export function NavLinks() {

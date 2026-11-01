@@ -2,7 +2,7 @@
 
 A private, source-grounded study guide. Upload your own notes, let an LLM propose concepts, terms, how-tos and questions, then approve each one next to the exact source excerpt it came from before it reaches your library.
 
-> **Status:** upload, extraction, the word-for-word check, the review queue and the searchable library and concept pages work end to end. Flashcards, quizzes and the dashboard are next.
+> **Status:** upload, extraction, the word-for-word check, the review queue and the searchable library, concept pages and flashcards work end to end. The study session, quizzes and the dashboard are next.
 
 ## How it works
 
@@ -13,6 +13,7 @@ A private, source-grounded study guide. Upload your own notes, let an LLM propos
 5. **Review** each item beside its excerpt highlighted in the source: approve, edit inline, tag, merge (keeping every excerpt) or discard, one at a time or in bulk, with keyboard shortcuts. Only approved items reach the library.
 6. **Find** anything in the library: approved items grouped by type, filtered by tag or source, with Postgres full-text search over titles, tags, the generated wording and the excerpts. Each word may be a prefix ("concur" finds "concurrency"), titles rank above excerpt-only matches, and matches are marked inside the full, untrimmed excerpt. The search document is written in the same transaction as the approval, by one SQL function (`item_search_document`) that the migration also uses to backfill.
 7. **Read** an item on its own page: the generated summary, a question to check yourself (or numbered steps for how-to guides and processes written as a list), every source fact shown in the surrounding text of its own document with an "Open in source" link that highlights the exact span, and related items that share tags or a source.
+8. **Practise** with flashcards made only from approved items, for everything, one tag or one source. The question comes first; the answer is shown with its source facts. Grades follow SM-2 (Again, Hard, Good, Easy; keys 1–4), and each button shows when the card would come back. Again brings a card back after 10 minutes. A second grade of the same showing, from a double click or a second tab, is ignored, so a card is never scheduled twice for one answer.
 
 ## The word-for-word check
 
