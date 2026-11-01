@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { container } from "@/server/container";
 import { requireOwner } from "@/server/session";
 import { ScopePicker } from "../scope-picker";
 import { parseStudyScope } from "../study-scope";
 import { QuizCard } from "./quiz-card";
+
+export const metadata: Metadata = { title: "Quiz · StudyForge AI" };
+
 export default async function QuizPage({ searchParams }: PageProps<"/quiz">) {
   await requireOwner();
   const selected = parseStudyScope(await searchParams);

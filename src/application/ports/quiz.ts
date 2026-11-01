@@ -1,10 +1,10 @@
 import type { QuizCandidate } from "@/domain/quiz/question";
-import type { GeneratedQuizOption, SessionScope } from "@/domain/study/types";
+import type { GeneratedQuizOption } from "@/domain/study/types";
+import { UserFacingError } from "@/application/errors";
+import type { StudyScope } from "./flashcards";
 import type { ExcerptView } from "./study";
-export interface QuizScope {
-  scope: SessionScope;
-  value?: string;
-}
+
+export type QuizScope = StudyScope;
 export interface StoredQuestion {
   id: string;
   itemId: string;
@@ -17,7 +17,12 @@ export interface QuizAnswer {
   chosenIndex: number;
   excerpts: ExcerptView[];
 }
-export class QuizError extends Error {}
+export class QuizError extends UserFacingError {
+  constructor(message: string) {
+    super(message);
+    this.name = "QuizError";
+  }
+}
 export interface QuizStore {
   candidates(scope: QuizScope): Promise<QuizCandidate[]>;
   save(question: Omit<StoredQuestion, "id">): Promise<StoredQuestion>;

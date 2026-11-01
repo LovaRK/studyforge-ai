@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, expect, it } from "vitest";
 import { makeQuiz } from "@/application/quiz/quiz";
-import { sources, items, itemExcerpts, quizAttempts, studySessions } from "@/infrastructure/db/schema";
+import { sources, items, itemExcerpts, quizAttempts, quizQuestions, studySessions } from "@/infrastructure/db/schema";
 import { connect, truncateAll } from "@/test/integration/database";
 import { DrizzleQuizStore } from "./drizzle-quiz-store";
 const { client, db } = connect();
@@ -61,6 +61,12 @@ it("serializes double submits and preserves the first answer", async () => {
   expect(answers[0]).toEqual(answers[1]);
   expect(await db.select().from(quizAttempts)).toHaveLength(1);
 });
+it("reuses an unanswered question for the same item", async () => {
+  const first = (await quiz.nextQuestion({ scope: "all" }))!;
+  const second = (await quiz.nextQuestion({ scope: "all" }))!;
+  expect(second).toEqual(first);
+  expect(await db.select().from(quizQuestions)).toHaveLength(1);
+});
 it("rejects a question if any option is no longer approved", async () => {
   const q = (await quiz.nextQuestion({ scope: "all" }))!;
   await db.update(items).set({ status: "discarded" }).where(eq(items.id, q.itemId));
@@ -69,7 +75,7 @@ it("rejects a question if any option is no longer approved", async () => {
 });
 it("rejects expired, ended and out-of-scope sessions without recording an answer", async () => {
   for (const patch of [
-    { endedAt: new Date() },
+    { endedAt: new Date(), endReason: "finished" as const },
     { startedAt: new Date(Date.now() - 120000) },
     { scope: "tag" as const, scopeValue: "missing" },
   ]) {
@@ -87,6 +93,6 @@ it("records an active session once and prevents studying the same item twice", a
   const q = (await quiz.nextQuestion({ scope: "all" }))!;
   await quiz.answer(q.id, 0, s!.id);
   const again = (await quiz.nextQuestion({ scope: "all" }))!;
-  await expect(quiz.answer(again.id, 0, s!.id)).rejects.toThrow("already been studied");
+  await expect(quiz.answer(again.id, 0, s!.id)).rejects.toThrow("already studied");
   expect(await db.select().from(quizAttempts)).toHaveLength(1);
 });

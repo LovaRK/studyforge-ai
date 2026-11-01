@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { buildQuestion } from "./question";
-const candidates = Array.from({ length: 6 }, (_, i) => ({ id: String(i), question: `Question ${i}?`, answer: `Answer ${i}` }));
+const candidates = Array.from({ length: 10 }, (_, i) => ({ id: String(i), question: `Question ${i}?`, answer: `Answer ${i}` }));
+
+function seeded(seed: number) {
+  return () => {
+    seed = (seed * 1_664_525 + 1_013_904_223) >>> 0;
+    return seed / 2 ** 32;
+  };
+}
 describe("reviewed quiz wording", () => {
   it("shuffles at most four distinct answers, retaining exactly one correct answer", () => {
     const q = buildQuestion(candidates[0]!, candidates, () => 0)!;
@@ -13,5 +20,16 @@ describe("reviewed quiz wording", () => {
     expect(buildQuestion(candidates[0]!, [{ ...candidates[1]!, answer: " answer 0 " }])).toBeNull();
     expect(buildQuestion({ ...candidates[0]!, question: " " }, candidates)).toBeNull();
     expect(buildQuestion({ ...candidates[0]!, answer: " " }, candidates)).toBeNull();
+  });
+
+  it("samples different distractors for different questions", () => {
+    const first = buildQuestion(candidates[0]!, candidates, seeded(1))!;
+    const second = buildQuestion(candidates[1]!, candidates, seeded(2))!;
+    const wrong = (question: typeof first) =>
+      question.options
+        .filter((option) => !option.correct)
+        .map((option) => option.itemId)
+        .sort();
+    expect(wrong(first)).not.toEqual(wrong(second));
   });
 });

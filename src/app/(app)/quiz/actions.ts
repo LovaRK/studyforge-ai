@@ -1,8 +1,9 @@
 "use server";
 import { z } from "zod";
+import { isUserFacingError } from "@/application/errors";
 import { container } from "@/server/container";
 import { requireOwner } from "@/server/session";
-import { QuizError, quizScopeSchema } from "@/application/quiz/quiz";
+import { quizScopeSchema } from "@/application/quiz/quiz";
 import { logger } from "@/infrastructure/logging/logger";
 export async function nextQuizAction(input: unknown, excluded: unknown) {
   await requireOwner();
@@ -25,7 +26,7 @@ export async function answerQuizAction(input: unknown) {
   try {
     return { ok: true as const, result: await container().quiz.answer(parsed.data.id, parsed.data.index, parsed.data.sessionId) };
   } catch (error) {
-    if (error instanceof QuizError) return { ok: false as const, error: error.message };
+    if (isUserFacingError(error)) return { ok: false as const, error: error.message };
     logger.error("quiz answer failed", { error });
     return { ok: false as const, error: "Could not save your answer. Please try again." };
   }

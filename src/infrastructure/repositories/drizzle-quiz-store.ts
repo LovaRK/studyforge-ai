@@ -1,9 +1,11 @@
-import { and, arrayContains, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, arrayContains, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { QuizError, type QuizAnswer, type QuizScope, type QuizStore, type StoredQuestion } from "@/application/ports/quiz";
 import type { Database } from "@/infrastructure/db/client";
-import { items, quizQuestions, quizAttempts, studySessions } from "@/infrastructure/db/schema";
+import { items, quizQuestions, quizAttempts } from "@/infrastructure/db/schema";
 import { DrizzleReviewStore } from "./drizzle-review-store";
+import { sessionAcceptsAnswer } from "./study-session-guard";
+
 const optionsSchema = z
   .array(z.object({ text: z.string().min(1), correct: z.boolean(), provenance: z.literal("generated"), itemId: z.string().uuid() }))
   .min(2)
@@ -11,6 +13,7 @@ const optionsSchema = z
   .refine((o) => o.filter((v) => v.correct).length === 1);
 export class DrizzleQuizStore implements QuizStore {
   constructor(private readonly db: Database) {}
+
   async candidates(scope: QuizScope) {
     return this.db
       .select({ id: items.id, question: items.question, answer: items.answer })
@@ -26,6 +29,15 @@ export class DrizzleQuizStore implements QuizStore {
   }
   async save(question: Omit<StoredQuestion, "id">): Promise<StoredQuestion> {
     const options = optionsSchema.parse(question.options);
+    const [existing] = await this.db
+      .select({ question: quizQuestions })
+      .from(quizQuestions)
+      .leftJoin(quizAttempts, eq(quizAttempts.questionId, quizQuestions.id))
+      .where(and(eq(quizQuestions.itemId, question.itemId), isNull(quizAttempts.id)))
+      .orderBy(desc(quizQuestions.createdAt), desc(quizQuestions.id))
+      .limit(1);
+    if (existing) return { ...existing.question, options: optionsSchema.parse(existing.question.options) };
+
     const [row] = await this.db
       .insert(quizQuestions)
       .values({ ...question, options })
@@ -51,21 +63,9 @@ export class DrizzleQuizStore implements QuizStore {
       const [previous] = await tx.select().from(quizAttempts).where(eq(quizAttempts.questionId, id));
       if (previous && previous.sessionId !== (sessionId ?? null))
         throw new QuizError("This question was already answered in another study run.");
-      if (!previous && sessionId) {
-        const [session] = await tx.select().from(studySessions).where(eq(studySessions.id, sessionId)).for("update");
-        const target = approved.find((i) => i.id === question.itemId)!;
-        if (
-          !session ||
-          session.endedAt ||
-          Date.now() >= session.startedAt.getTime() + session.plannedMinutes * 60000 ||
-          (session.scope === "tag" && !target.tags.includes(session.scopeValue!)) ||
-          (session.scope === "source" && target.sourceId !== session.scopeValue)
-        )
-          throw new QuizError("This session has ended or the question is outside its selection.");
-        const seen = await tx.execute(sql`select 1 from quiz_attempts where session_id = ${sessionId} and item_id = ${question.itemId}
-          union all select 1 from card_reviews where session_id = ${sessionId} and item_id = ${question.itemId}`);
-        if (seen.length) throw new QuizError("This item has already been studied in this session.");
-      }
+      const target = approved.find((item) => item.id === question.itemId)!;
+      if (!previous && sessionId && !(await sessionAcceptsAnswer(tx, sessionId, target, new Date())))
+        throw new QuizError("This session has ended, the item is outside its selection, or it was already studied.");
       const correctIndex = options.findIndex((o) => o.correct);
       const chosen = previous?.chosenIndex ?? chosenIndex;
       if (!previous)
