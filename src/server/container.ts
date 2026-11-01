@@ -1,4 +1,6 @@
 import "server-only";
+import { makeQuiz } from "@/application/quiz/quiz";
+import { DrizzleQuizStore } from "@/infrastructure/repositories/drizzle-quiz-store";
 import { makeLogin } from "@/application/auth/login";
 import { ensureOwnerCredential } from "@/application/auth/owner-credential";
 import { ExtractionRunner } from "@/application/extraction/extraction-runner";
@@ -50,6 +52,7 @@ function build() {
     conceptPages: makeConceptPages({ items: reviewStore, sources, library: libraryStore }),
     flashcards,
     studySessions: makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards }),
+    quiz: makeQuiz({ store: new DrizzleQuizStore(db) }),
     textExtractor: new DocumentTextExtractor(),
     extractionRunner: new ExtractionRunner({
       sources,
