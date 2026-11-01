@@ -40,6 +40,29 @@ describe("chunkText", () => {
     chunks.slice(1).forEach((c, i) => expect(c.start).toBeGreaterThanOrEqual(chunks[i]!.end));
   });
 
+  it("splits a single line longer than the limit between words (#3)", () => {
+    const text = "word ".repeat(5000);
+    const chunks = chunkText(text);
+    expect(chunks.map((c) => c.wordCount)).toEqual([1500, 1500, 1500, 500]);
+    expect(chunks.every((c) => text.slice(c.start, c.end) === c.text)).toBe(true);
+  });
+
+  it("prefers a sentence end near the limit when splitting a long line", () => {
+    const sentence = (n: number) => `${words(n - 1)} end.`;
+    const text = `${sentence(45)} ${sentence(45)} ${sentence(20)}`; // one line, 110 words
+    const chunks = chunkText(text, { maxWords: 100 });
+    expect(chunks.map((c) => c.wordCount)).toEqual([90, 20]);
+    expect(chunks[0]!.text.endsWith("end.")).toBe(true);
+  });
+
+  it("never loses or duplicates words when splitting long lines", () => {
+    const text = `Q: Long?\n${words(333, "alpha")}\n${words(7)}\n${words(250, "beta")}`;
+    const chunks = chunkText(text, { maxWords: 100 });
+    expect(chunks.every((c) => c.wordCount <= 100)).toBe(true);
+    expect(chunks.reduce((sum, c) => sum + c.wordCount, 0)).toBe(countWords(text));
+    chunks.slice(1).forEach((c, i) => expect(c.start).toBeGreaterThanOrEqual(chunks[i]!.end));
+  });
+
   it("returns nothing for blank text", () => {
     expect(chunkText("  \n\n ")).toEqual([]);
   });
