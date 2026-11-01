@@ -30,7 +30,8 @@ Source: the Handshake mission "Create a Study App – Build a Living Study Guide
 ## Shared contract (on `main` before the split)
 
 - **Database:** `src/infrastructure/db/schema.ts` and migration `0002_study_tools` define `item_search`, `srs_cards`, `card_reviews`, `quiz_questions`, `quiz_attempts` and `study_sessions`.
-- **Vocabulary:** `src/domain/study/types.ts` defines grades, SRS state, quiz options with provenance, and session scopes.
+- **Vocabulary:** `src/domain/study/types.ts` defines grades, SRS state, quiz options and session scopes.
+- **Quiz option provenance** describes where the option's wording comes from, never whether it is correct or approved. `source` means the text is a verified verbatim excerpt and the option carries that excerpt's range (`isVerbatimSourceOption` re-checks it). Everything else, including an approved item's `answer`, is `generated` and is labelled "Generated" in the UI.
 - **Quiz API for the study session:** track B exposes `makeQuiz(deps)` from `src/application/quiz/quiz.ts` with:
   - `nextQuestion(scope: { scope: SessionScope; value?: string }, excludeIds?: string[]): Promise<QuizQuestionView | null>`
   - `answer(questionId: string, chosenIndex: number, sessionId?: string): Promise<{ correct: boolean; correctIndex: number; excerpts: Excerpt[] }>`
@@ -64,7 +65,7 @@ Both use the same Docker Postgres. Database names never overlap, so tests can ru
 
 1. One feature per branch and pull request, with the template filled in and CI green.
 2. The **other** track reviews it: it checks out the branch, runs the checks, reads the diff against `AGENTS.md`, and posts a `gh pr review --comment` with findings ranked by severity. Both agents push as the same GitHub user, so a review is a comment that ends in **"LGTM"** or **"Changes requested"**.
-3. The author fixes the findings, then squash-merges once the review says LGTM.
+3. The author fixes the findings and asks for a re-review. Once the reviewer says LGTM, **the owner merges** (squash). Agents never merge pull requests.
 4. Problems found outside a PR become GitHub issues using the Task template, labelled `audit` or `bug`.
 
 ## Definition of done

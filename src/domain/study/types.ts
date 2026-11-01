@@ -20,18 +20,40 @@ export interface SrsState {
 export const INITIAL_EASE_FACTOR = 2.5;
 
 /**
- * Where a quiz option's wording comes from. Correct answers and source-checked
- * distractors are "source"; anything else is "generated" and must be labelled so.
+ * Where a quiz option's *wording* comes from, independent of whether the option
+ * is correct and of whether its item was approved:
+ * - "source": the text is a verified verbatim excerpt, exactly
+ *   `source.text.slice(excerpt.start, excerpt.end)`.
+ * - "generated": any model wording, including an approved item's `answer` or
+ *   `summary`. Approval does not turn generated text into a source fact.
  */
 export const OPTION_PROVENANCES = ["source", "generated"] as const;
 export type OptionProvenance = (typeof OPTION_PROVENANCES)[number];
 
-export interface QuizOption {
+interface QuizOptionBase {
   text: string;
   correct: boolean;
-  provenance: OptionProvenance;
-  /** The approved item this option was taken from, when it came from one. */
+}
+
+/** Verbatim source text. Must carry the excerpt it was copied from, so it can be re-verified. */
+export interface SourceQuizOption extends QuizOptionBase {
+  provenance: "source";
+  itemId: string;
+  excerpt: { sourceId: string; start: number; end: number };
+}
+
+/** Model wording. Shown with a "Generated" label. */
+export interface GeneratedQuizOption extends QuizOptionBase {
+  provenance: "generated";
+  /** The approved item whose generated wording was used, if any. */
   itemId?: string;
+}
+
+export type QuizOption = SourceQuizOption | GeneratedQuizOption;
+
+/** True when a "source" option's text is exactly the excerpt it points to. */
+export function isVerbatimSourceOption(option: SourceQuizOption, sourceText: string): boolean {
+  return sourceText.slice(option.excerpt.start, option.excerpt.end) === option.text;
 }
 
 /** What a focused study session draws from. */
