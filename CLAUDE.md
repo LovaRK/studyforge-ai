@@ -11,6 +11,7 @@ Private, source-grounded study app. Product spec: `docs/BRIEF.md` (local only, n
 - `npm run dev` – app on http://localhost:3000
 - `npm run lint && npm run typecheck && npm test` – must pass before every commit
 - `npm run test:e2e` – Playwright; the LLM is always mocked (`LLM_PROVIDER=mock`)
+- Change dependencies with `npx npm@10 install …` – CI and Replit run Node 22's npm 10, and a lockfile written by npm 11 breaks `npm ci` there
 
 ## Architecture (dependencies point inwards)
 
