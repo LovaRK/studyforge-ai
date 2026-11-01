@@ -16,18 +16,6 @@ A private, source-grounded study guide. Upload your own notes, let an LLM propos
 8. **Practise** with flashcards made only from approved items, for everything, one tag or one source. The question comes first; the answer is shown with its source facts. Grades follow SM-2 (Again, Hard, Good, Easy; keys 1–4), and each button shows when the card would come back. Again brings a card back after 10 minutes. A second grade of the same showing, from a double click or a second tab, is ignored, so a card is never scheduled twice for one answer.
 9. **Focus** with a timed study session: pick everything, a tag or a source and 5–25 minutes. Due cards come first, then new cards alternate with quiz questions, each item once, with a countdown, until the time is up, nothing is left, or you finish. The summary counts card grades and quiz accuracy, and the reason the session ended is stored with it. Answers are checked against the session under a row lock: once it has ended, passed its deadline, or already covered an item, a late answer from another tab is refused, so a finished summary never changes.
 
-## Understanding dashboard
-
-The **Dashboard** tracks mastery by tag and source, due and new cards, UTC study streaks, quiz accuracy, review decisions and excerpt rejection rate. An established card means at least two consecutive successful SM-2 reviews; this is a scheduling signal, not a claim of expertise. Empty metrics are explicit, and extraction totals remain stable after merges.
-
-## Demo
-
-Choose **Load original demo note** on the dashboard, or run `npm run seed:demo`. It imports the redistributable note in `demo/swift-value-semantics.md`, runs the same chunking, mock extraction and word-for-word verification as an upload, and leaves verified items pending for the owner to review. Loading it again resumes or returns the same source, including under concurrent requests.
-
-## Backup
-
-The dashboard downloads a versioned JSON snapshot under the owner session. It uses a repeatable-read transaction and includes source text, extraction progress and rejections, items and excerpts, review history, spaced-repetition state, quizzes and study sessions. Password hashes, environment values and the LLM response cache are excluded. The response is private and never cached.
-
 ## Quizzes
 
 Open **Quiz** to practice approved items, optionally selected by tag or source. Each question offers up to four distinct answers reused from reviewed items. All options are labelled **Generated interpretation**; correctness and source excerpts are revealed only after answering. A round visits each item once and records its first submitted answer, including concurrent double clicks. At least two distinct approved answers are needed in the selection.
@@ -98,10 +86,6 @@ CI runs lint, typecheck, unit tests, integration tests, a production build and t
 | `GEMINI_API_KEY`          | Google AI Studio key (free tier)                                |
 | `GEMINI_MODEL`            | A Flash / Flash-Lite model, e.g. `gemini-3.5-flash-lite`        |
 | `LLM_REQUESTS_PER_MINUTE` | Optional. Spacing for model calls (default 10; 0 with the mock) |
-
-## Deploy
-
-The checked-in `.replit` uses Node 22, installs from the lockfile, builds Next.js, applies migrations and starts on port 3000. Publish it as a **Reserved VM**, not Autoscale, because extraction runs in the background after the upload request returns. The owner-facing [Replit deployment guide](docs/DEPLOY.md) covers production database setup, secrets, privacy, persistence, backup and rollback checks. Deployment and secret entry remain owner actions.
 
 ## License
 
