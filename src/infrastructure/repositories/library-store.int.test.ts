@@ -164,4 +164,26 @@ describe("Postgres library store", () => {
     expect(ids(await flat({ query: "zebra" }))).toEqual([approved!.id]);
     expect(await db.select().from(itemSearch).where(eq(itemSearch.itemId, pending!.id))).toEqual([]);
   });
+
+  it("relates approved items by shared tags first, then by source, never including the item itself", async () => {
+    const memory = await ingest("memory.md", MEMORY);
+    const queues = await ingest("queues.md", QUEUES);
+    const arc = pick(memory.items, "Automatic Reference Counting");
+    const weak = pick(memory.items, "weak reference");
+    const unowned = pick(memory.items, "unowned reference");
+    const gcd = pick(queues.items, "Grand Central Dispatch");
+    const main = pick(queues.items, "main queue");
+    await review.tag(arc.id, ["memory", "references"]);
+    await review.tag(gcd.id, ["memory", "references"]);
+    await review.tag(weak.id, ["unrelated"]);
+    await review.tag(unowned.id, ["unrelated"]);
+    await review.tag(main.id, ["unrelated"]);
+    await review.approve([arc.id, weak.id, gcd.id, main.id]);
+
+    // gcd shares two tags; weak only shares the source. unowned is still pending, main shares nothing.
+    const related = await store.related({ id: arc.id, tags: ["memory", "references"], sourceId: memory.source.id }, 6);
+    expect(ids(related)).toEqual([gcd.id, weak.id]);
+    expect(ids(await store.related({ id: arc.id, tags: ["memory", "references"], sourceId: memory.source.id }, 1))).toEqual([gcd.id]);
+    expect(ids(await store.related({ id: weak.id, tags: [], sourceId: memory.source.id }, 6))).toEqual([arc.id]);
+  });
 });

@@ -2,6 +2,7 @@ import "server-only";
 import { makeLogin } from "@/application/auth/login";
 import { ensureOwnerCredential } from "@/application/auth/owner-credential";
 import { ExtractionRunner } from "@/application/extraction/extraction-runner";
+import { makeConceptPages } from "@/application/library/concept-page";
 import { makeLibrary } from "@/application/library/library";
 import { makeReview } from "@/application/review/review";
 import { getEnv } from "@/config/env";
@@ -30,6 +31,7 @@ function build() {
   const sources = new DrizzleSourceStore(db);
   const extraction = new DrizzleExtractionStore(db);
   const reviewStore = new DrizzleReviewStore(db);
+  const libraryStore = new DrizzleLibraryStore(db);
 
   return {
     env,
@@ -39,7 +41,8 @@ function build() {
     extraction,
     reviewStore,
     review: makeReview(reviewStore),
-    library: makeLibrary(new DrizzleLibraryStore(db)),
+    library: makeLibrary(libraryStore),
+    conceptPages: makeConceptPages({ items: reviewStore, sources, library: libraryStore }),
     textExtractor: new DocumentTextExtractor(),
     extractionRunner: new ExtractionRunner({
       sources,

@@ -1,4 +1,4 @@
-import { and, arrayContains, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, arrayContains, arrayOverlaps, asc, desc, eq, ne, or, sql, type SQL } from "drizzle-orm";
 import type { LibraryFacets, LibraryFilter, LibraryItem, LibraryStore, TextSegment } from "@/application/ports/library";
 import type { Database } from "@/infrastructure/db/client";
 import { itemExcerpts, items, itemSearch, sources } from "@/infrastructure/db/schema";
@@ -22,11 +22,31 @@ export class DrizzleLibraryStore implements LibraryStore {
   constructor(private readonly db: Database) {}
 
   async list(filter: LibraryFilter & { tsquery?: string }): Promise<LibraryItem[]> {
+    return this.select(filter);
+  }
+
+  related(item: { id: string; tags: string[]; sourceId: string }, limit: number): Promise<LibraryItem[]> {
+    // Drizzle expands a JS array into a parameter list, so build the array literal explicitly.
+    const tags = sql`array[${sql.join(
+      item.tags.map((tag) => sql`${tag}`),
+      sql`, `,
+    )}]::text[]`;
+    return this.select({
+      where: and(
+        ne(items.id, item.id),
+        or(eq(items.sourceId, item.sourceId), item.tags.length > 0 ? arrayOverlaps(items.tags, item.tags) : undefined),
+      ),
+      orderBy: [desc(sql`cardinality(array(select unnest(${items.tags}) intersect select unnest(${tags})))`)],
+      limit,
+    });
+  }
+
+  private async select(filter: LibraryFilter & { tsquery?: string; where?: SQL; orderBy?: SQL[]; limit?: number }): Promise<LibraryItem[]> {
     const query = filter.tsquery ? sql`to_tsquery('english', ${filter.tsquery})` : null;
     const allExcerpts = sql`(select string_agg(${itemExcerpts.text}, ' … ' order by ${itemExcerpts.position}) from ${itemExcerpts} where ${itemExcerpts.itemId} = ${items.id})`;
     const firstExcerpt = sql`(select ${itemExcerpts.text} from ${itemExcerpts} where ${itemExcerpts.itemId} = ${items.id} order by ${itemExcerpts.position} limit 1)`;
 
-    const rows = await this.db
+    const statement = this.db
       .select({
         id: items.id,
         type: items.type,
@@ -50,13 +70,17 @@ export class DrizzleLibraryStore implements LibraryStore {
           filter.sourceId ? eq(items.sourceId, filter.sourceId) : undefined,
           filter.tag ? arrayContains(items.tags, [filter.tag]) : undefined,
           query ? sql`${itemSearch.document} @@ ${query}` : undefined,
+          filter.where,
         ),
       )
       .orderBy(
-        ...([query ? desc(sql`ts_rank_cd(${itemSearch.document}, ${query})`) : null, asc(items.title), asc(items.id)].filter(
-          Boolean,
-        ) as SQL[]),
-      );
+        ...(filter.orderBy ?? []),
+        ...(query ? [desc(sql`ts_rank_cd(${itemSearch.document}, ${query})`)] : []),
+        asc(items.title),
+        asc(items.id),
+      )
+      .$dynamic();
+    const rows = await (filter.limit ? statement.limit(filter.limit) : statement);
 
     return rows.map((row) => ({
       ...row,
