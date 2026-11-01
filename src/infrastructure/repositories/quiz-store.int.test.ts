@@ -61,11 +61,22 @@ it("serializes double submits and preserves the first answer", async () => {
   expect(answers[0]).toEqual(answers[1]);
   expect(await db.select().from(quizAttempts)).toHaveLength(1);
 });
-it("reuses an unanswered question for the same item", async () => {
+it("expires abandoned questions without sharing a recent showing", async () => {
   const first = (await quiz.nextQuestion({ scope: "all" }))!;
+  await db
+    .update(quizQuestions)
+    .set({ createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) })
+    .where(eq(quizQuestions.id, first.id));
   const second = (await quiz.nextQuestion({ scope: "all" }))!;
-  expect(second).toEqual(first);
+  expect(second.id).not.toBe(first.id);
+  expect(second.itemId).toBe(first.itemId);
   expect(await db.select().from(quizQuestions)).toHaveLength(1);
+});
+it("keeps concurrent showings independent", async () => {
+  const [first, second] = await Promise.all([quiz.nextQuestion({ scope: "all" }), quiz.nextQuestion({ scope: "all" })]);
+  expect(first!.id).not.toBe(second!.id);
+  await expect(Promise.all([quiz.answer(first!.id, 0), quiz.answer(second!.id, 1)])).resolves.toHaveLength(2);
+  expect(await db.select().from(quizAttempts)).toHaveLength(2);
 });
 it("rejects a question if any option is no longer approved", async () => {
   const q = (await quiz.nextQuestion({ scope: "all" }))!;

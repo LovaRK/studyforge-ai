@@ -1,4 +1,4 @@
-import { and, arrayContains, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, arrayContains, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { QuizError, type QuizAnswer, type QuizScope, type QuizStore, type StoredQuestion } from "@/application/ports/quiz";
 import type { Database } from "@/infrastructure/db/client";
@@ -29,20 +29,20 @@ export class DrizzleQuizStore implements QuizStore {
   }
   async save(question: Omit<StoredQuestion, "id">): Promise<StoredQuestion> {
     const options = optionsSchema.parse(question.options);
-    const [existing] = await this.db
-      .select({ question: quizQuestions })
-      .from(quizQuestions)
-      .leftJoin(quizAttempts, eq(quizAttempts.questionId, quizQuestions.id))
-      .where(and(eq(quizQuestions.itemId, question.itemId), isNull(quizAttempts.id)))
-      .orderBy(desc(quizQuestions.createdAt), desc(quizQuestions.id))
-      .limit(1);
-    if (existing) return { ...existing.question, options: optionsSchema.parse(existing.question.options) };
-
-    const [row] = await this.db
-      .insert(quizQuestions)
-      .values({ ...question, options })
-      .returning();
-    return { ...row!, options };
+    return this.db.transaction(async (tx) => {
+      // Expire abandoned showings without sharing or invalidating a recent
+      // question that may still be open in another tab or study session.
+      await tx.execute(sql`
+        delete from ${quizQuestions} q
+        where q.item_id = ${question.itemId}
+          and q.created_at < now() - interval '1 day'
+          and not exists (select 1 from ${quizAttempts} a where a.question_id = q.id)`);
+      const [row] = await tx
+        .insert(quizQuestions)
+        .values({ ...question, options })
+        .returning();
+      return { ...row!, options };
+    });
   }
   async answer(id: string, chosenIndex: number, sessionId?: string): Promise<QuizAnswer> {
     return this.db.transaction(async (tx) => {
