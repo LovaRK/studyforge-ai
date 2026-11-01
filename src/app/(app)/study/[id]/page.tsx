@@ -11,6 +11,7 @@ import { requireOwner } from "@/server/session";
 import { FlashcardCard } from "../../flashcards/flashcard-card";
 import { finishSessionAction } from "../actions";
 import { Countdown } from "./countdown";
+import { SessionQuiz } from "./session-quiz";
 
 export const metadata: Metadata = { title: "Study session · StudyForge AI" };
 
@@ -73,7 +74,16 @@ export default async function StudySessionPage({ params }: PageProps<"/study/[id
           </form>
         </div>
       </div>
-      <FlashcardCard key={step.card.itemId} card={step.card} sessionId={id} />
+      {step.kind === "card" ? (
+        <FlashcardCard key={step.card.itemId} card={step.card} sessionId={id} />
+      ) : (
+        <SessionQuiz
+          key={step.question.id}
+          question={step.question}
+          scope={session.scope === "all" ? { scope: "all" } : { scope: session.scope, value: session.scopeValue! }}
+          sessionId={id}
+        />
+      )}
     </div>
   );
 }

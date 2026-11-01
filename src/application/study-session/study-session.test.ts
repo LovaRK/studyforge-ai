@@ -77,4 +77,53 @@ describe("study sessions", () => {
     await expect(api.start({ scope: "source" }, 10)).rejects.toThrow("Choose a tag or a source.");
     await expect(api.next("missing")).rejects.toThrow(StudySessionError);
   });
+
+  it("alternates cards and quiz questions, and lets either continue when the other runs out", async () => {
+    const question = { id: "q1", itemId: "i2", prompt: "P?", options: [] };
+    let reviewed = 0;
+    let cards = true;
+    let questions = true;
+    const quizCalls: string[][] = [];
+    const api = makeStudySessions({
+      store: {
+        start: async () => "s1",
+        get: async () => ({
+          id: "s1",
+          scope: "all",
+          scopeValue: null,
+          plannedMinutes: 30,
+          startedAt: START,
+          endedAt: null,
+          endReason: null,
+        }),
+        end: async () => null,
+        activity: async () => ({
+          cards: { again: 0, hard: 0, good: reviewed, easy: 0 },
+          quiz: { answered: 0, correct: 0 },
+          seenItemIds: ["seen"],
+        }),
+      },
+      flashcards: { next: async () => ({ card: cards ? card : null, counts: { due: 0, new: 0, reviewedSince: 0, nextDueAt: null } }) },
+      quiz: {
+        async nextQuestion(_scope, exclude = []) {
+          quizCalls.push(exclude);
+          return questions ? question : null;
+        },
+      },
+      now: () => START,
+    });
+
+    expect((await api.next("s1")).kind).toBe("card");
+    reviewed = 1;
+    expect(await api.next("s1")).toMatchObject({ kind: "quiz", question });
+    expect(quizCalls.at(-1)).toEqual(["seen"]);
+    questions = false;
+    expect((await api.next("s1")).kind).toBe("card");
+    reviewed = 2;
+    cards = false;
+    questions = true;
+    expect((await api.next("s1")).kind).toBe("quiz");
+    questions = false;
+    expect(await api.next("s1")).toMatchObject({ kind: "done", reason: "empty" });
+  });
 });

@@ -42,23 +42,39 @@ test("a focused study session over one source: timed, each card once, with a sum
   await expect(other.getByRole("heading", { name: "Session finished" })).toBeVisible();
   await other.close();
 
-  // The first tab's late answer is refused and it shows the unchanged summary.
-  await page.getByRole("button", { name: "Show answer" }).click();
-  await page.getByRole("button", { name: /^Good/ }).click();
+  // The first tab's late answer (now a quiz question) is refused; the summary is unchanged.
+  const answers = page.getByRole("group", { name: "Answers" });
+  await answers.getByRole("button").first().click();
+  await expect(page.getByRole("alert").filter({ hasText: "session has ended" })).toBeVisible();
+  await page.reload();
   await expect(page.getByRole("heading", { name: "Session finished" })).toBeVisible();
   await expect(page.getByLabel("Session summary")).toContainText("Studied1");
   await expect(page.getByLabel("Session summary")).toContainText("Good1");
 
-  // A second session shows only the two cards not yet studied, then ends by itself.
+  // A second session alternates cards and quiz questions until nothing is left.
   await page.getByRole("link", { name: "Start another session" }).click();
   await page.getByLabel("What to study").selectOption({ label: "error-handling" });
   await page.getByRole("button", { name: "Start session" }).click();
-  for (const done of [0, 1]) {
-    await expect(progress).toHaveText(`Source: error-handling · ${done} done`);
-    await page.getByRole("button", { name: "Show answer" }).click();
-    await page.getByRole("button", { name: /^Easy/ }).click();
+  const kinds: string[] = [];
+  const nothingLeft = page.getByRole("heading", { name: "Nothing left to study here" });
+  for (let done = 0; done < 4; done++) {
+    // Wait for this step's page: the next progress count, or the summary once nothing is left.
+    await expect(progress.filter({ hasText: ` ${done} done` }).or(nothingLeft)).toBeVisible();
+    if (await nothingLeft.isVisible()) break;
+    if (await answers.isVisible()) {
+      kinds.push("quiz");
+      await answers.getByRole("button").first().click();
+      // Feedback shows the source fact before moving on.
+      await expect(page.getByRole("region", { name: "Answer feedback" }).getByText("Source fact", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "Next question" }).click();
+    } else {
+      kinds.push("card");
+      await page.getByRole("button", { name: "Show answer" }).click();
+      await page.getByRole("button", { name: /^Easy/ }).click();
+    }
   }
-  await expect(page.getByRole("heading", { name: "Nothing left to study here" })).toBeVisible();
-  await expect(page.getByLabel("Session summary")).toContainText("Studied2");
-  await expect(page.getByLabel("Session summary")).toContainText("Easy2");
+  await expect(nothingLeft).toBeVisible();
+  expect(kinds.slice(0, 2)).toEqual(["card", "quiz"]);
+  await expect(page.getByLabel("Session summary")).toContainText(`Studied${kinds.length}`);
+  await expect(page.getByLabel("Session summary")).toContainText("Quiz correct");
 });

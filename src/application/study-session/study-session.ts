@@ -2,6 +2,7 @@ import type { Flashcards, FlashcardView } from "@/application/flashcards/flashca
 import type { StudyScope } from "@/application/ports/flashcards";
 import type { SessionActivity, StudySessionRecord, StudySessionStore } from "@/application/ports/study-session";
 import { UserFacingError } from "@/application/errors";
+import type { Quiz, QuizQuestionView } from "@/application/quiz/quiz";
 
 export const SESSION_MINUTES = { min: 1, max: 120 } as const;
 
@@ -20,23 +21,25 @@ export interface SessionSummary {
 
 export type SessionStep =
   | { kind: "card"; card: FlashcardView; endsAt: Date; summary: SessionSummary }
+  | { kind: "quiz"; question: QuizQuestionView; endsAt: Date; summary: SessionSummary }
   | { kind: "done"; reason: "time" | "finished" | "empty"; summary: SessionSummary };
 
 interface Deps {
   store: StudySessionStore;
   flashcards: Pick<Flashcards, "next">;
+  /** Without a quiz, sessions are cards only. */
+  quiz?: Pick<Quiz, "nextQuestion">;
   now?: () => Date;
 }
 
 /**
- * A focused, time-boxed run over everything, one tag or one source. Each step
- * serves the next due or new card not yet seen in this session; the session ends
- * when its time is up, when nothing is left, or when the owner finishes it.
- *
- * Quiz questions (track B's `makeQuiz`) join the mix through the same `next`
- * step once they exist; the summary already counts quiz attempts by session.
+ * A focused, time-boxed run over everything, one tag or one source. Steps
+ * alternate between a flashcard (due first, then new) and a quiz question, each
+ * about an item not yet studied in this session; when one kind runs out the other
+ * continues. The session ends when its time is up, when nothing is left, or when
+ * the owner finishes it.
  */
-export function makeStudySessions({ store, flashcards, now = () => new Date() }: Deps) {
+export function makeStudySessions({ store, flashcards, quiz, now = () => new Date() }: Deps) {
   async function summarize(session: StudySessionRecord): Promise<SessionSummary> {
     const activity = await store.activity(session.id);
     const reviewed = Object.values(activity.cards).reduce((a, b) => a + b, 0) + activity.quiz.answered;
@@ -75,8 +78,22 @@ export function makeStudySessions({ store, flashcards, now = () => new Date() }:
 
       const scope: StudyScope =
         session.scope === "all" ? { scope: "all" } : { scope: session.scope, value: session.scopeValue ?? undefined };
-      const { card } = await flashcards.next(scope, summary.activity.seenItemIds);
-      return card ? { kind: "card", card, endsAt, summary } : done("empty");
+      const seen = summary.activity.seenItemIds;
+      const nextCard = async (): Promise<SessionStep | null> => {
+        const { card } = await flashcards.next(scope, seen);
+        return card ? { kind: "card", card, endsAt, summary } : null;
+      };
+      const nextQuestion = async (): Promise<SessionStep | null> => {
+        const question = quiz ? await quiz.nextQuestion(scope, seen) : null;
+        return question ? { kind: "quiz", question, endsAt, summary } : null;
+      };
+      // Even steps start with a card, odd steps with a question.
+      const order = summary.reviewed % 2 === 0 ? [nextCard, nextQuestion] : [nextQuestion, nextCard];
+      for (const attempt of order) {
+        const step = await attempt();
+        if (step) return step;
+      }
+      return done("empty");
     },
 
     async finish(id: string): Promise<void> {
