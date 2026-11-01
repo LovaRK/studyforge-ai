@@ -24,6 +24,10 @@ The **Dashboard** tracks mastery by tag and source, due and new cards, UTC study
 
 Choose **Load original demo note** on the dashboard, or run `npm run seed:demo`. It imports the redistributable note in `demo/swift-value-semantics.md`, runs the same chunking, mock extraction and word-for-word verification as an upload, and leaves verified items pending for the owner to review. Loading it again resumes or returns the same source, including under concurrent requests.
 
+## Backup
+
+The dashboard downloads a versioned JSON snapshot under the owner session. It uses a repeatable-read transaction and includes source text, extraction progress and rejections, items and excerpts, review history, spaced-repetition state, quizzes and study sessions. Password hashes, environment values and the LLM response cache are excluded. The response is private and never cached.
+
 ## Quizzes
 
 Open **Quiz** to practice approved items, optionally selected by tag or source. Each question offers up to four distinct answers reused from reviewed items. All options are labelled **Generated interpretation**; correctness and source excerpts are revealed only after answering. A round visits each item once and records its first submitted answer, including concurrent double clicks. At least two distinct approved answers are needed in the selection.
