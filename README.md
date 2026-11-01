@@ -16,6 +16,10 @@ A private, source-grounded study guide. Upload your own notes, let an LLM propos
 8. **Practise** with flashcards made only from approved items, for everything, one tag or one source. The question comes first; the answer is shown with its source facts. Grades follow SM-2 (Again, Hard, Good, Easy; keys 1–4), and each button shows when the card would come back. Again brings a card back after 10 minutes. A second grade of the same showing, from a double click or a second tab, is ignored, so a card is never scheduled twice for one answer.
 9. **Focus** with a timed study session: pick everything, a tag or a source and 5–25 minutes. You get due cards, then new ones, each once, with a countdown, until the time is up, nothing is left, or you finish. The summary counts what you studied and how you graded it, and the reason the session ended is stored with it. Answers are checked against the session under a row lock: once it has ended, passed its deadline, or already covered an item, a late answer from another tab is refused, so a finished summary never changes. Quiz questions join the mix when the quiz lands.
 
+## Understanding dashboard
+
+The **Dashboard** tracks mastery by tag and source, due and new cards, UTC study streaks, quiz accuracy, review decisions and excerpt rejection rate. An established card means at least two consecutive successful SM-2 reviews; this is a scheduling signal, not a claim of expertise. Empty metrics are explicit, and extraction totals remain stable after merges.
+
 ## Quizzes
 
 Open **Quiz** to practice approved items, optionally selected by tag or source. Each question offers up to four distinct answers reused from reviewed items. All options are labelled **Generated interpretation**; correctness and source excerpts are revealed only after answering. A round visits each item once and records its first submitted answer, including concurrent double clicks. At least two distinct approved answers are needed in the selection.
