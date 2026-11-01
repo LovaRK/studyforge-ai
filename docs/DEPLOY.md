@@ -17,12 +17,12 @@ Replit is the intended host for the mission submission. Deployment is an owner a
 
 ## Publish
 
-1. Open **Publishing** and select an Autoscale deployment.
+1. Open **Publishing**, then **Adjust settings**, and set the deployment type to **Reserved VM** (the shared 0.5 vCPU / 2 GB machine is enough). Do not use Autoscale: extraction keeps calling the model in the background for minutes after the upload request returns, and Autoscale only runs while requests are in flight, scales to zero when idle and may start several instances, each with its own extraction queue and login rate limiter. A Reserved VM is one always-on server, which is what the in-process queue assumes. It has a fixed monthly cost (US$15 for the shared machine when checked on 1 November 2026), paid from the plan's monthly credits first; confirm the price on the publishing screen before you publish.
 2. In production database settings, enable **Create production database**. Copy development data only if it is intentionally safe to publish; the original demo is safe, private study material is not.
 3. Confirm the production deployment has its own `DATABASE_URL` and the five required secrets above.
-4. Publish. Replit runs `npm ci && npm run build`, then applies migrations and starts the production server. A failed migration stops startup rather than serving code against an old schema.
+4. Publish. Replit runs `npm ci --include=dev && npm run build`, then applies migrations and starts the production server. A failed migration stops startup rather than serving code against an old schema.
 
-The `.replit` file selects Node 22, disables automatic dependency guessing, exposes local port 3000 and uses `npm ci` so the lockfile controls every installed package.
+The `.replit` file selects Node 22, disables automatic dependency guessing, exposes local port 3000 and uses `npm ci --include=dev` so the lockfile controls every installed package. The build (`typescript`, `tailwindcss`) and the startup migration (`tsx`, `dotenv`) need development dependencies, so they are installed even if the build runs with `NODE_ENV=production`.
 
 ## Mandatory privacy and persistence checks
 
@@ -43,4 +43,4 @@ Merge reviewed changes to `main`, pull them into the Replit app, run the checks,
 
 If a publish fails, keep the previous deployment active, read the publish logs, and correct the build or migration. Do not point production at the development database as a shortcut. Restore database state only from a deliberate Replit checkpoint or a verified backup.
 
-References checked on 1 November 2026: [Replit app configuration](https://docs.replit.com/references/project-setup/configuration), [Replit SQL database](https://docs.replit.com/references/data-and-storage/sql-database), [creating a production database while publishing](https://docs.replit.com/references/data-and-storage/create-production-database-when-publishing), and [monitoring a deployment](https://docs.replit.com/references/publishing/monitoring-a-deployment).
+References checked on 1 November 2026: [Replit app configuration](https://docs.replit.com/references/project-setup/configuration), [Replit SQL database](https://docs.replit.com/references/data-and-storage/sql-database), [creating a production database while publishing](https://docs.replit.com/references/data-and-storage/create-production-database-when-publishing), and [monitoring a deployment](https://docs.replit.com/references/publishing/monitoring-a-deployment), [deployment types](https://docs.replit.com/features/publishing/deployment-types) and [publishing costs](https://docs.replit.com/billing/deployment-pricing).
