@@ -62,7 +62,7 @@ Distractors reuse answers from other approved items and remain labelled generate
 
 ### In-process extraction queue
 
-For a single-owner project, a persisted chunk state plus an in-process runner is simpler than a separate queue service. Work resumes after restart because states live in Postgres. At larger scale, move leases and workers into a durable job system.
+For a single-owner project, a persisted chunk state plus an in-process runner is simpler than a separate queue service. Work resumes after restart because states live in Postgres. The trade-off shows up in hosting: the app is published as one always-on Reserved VM, because a scale-to-zero, multi-instance host would pause the background queue and split the in-memory login limiter. At larger scale, move leases and workers into a durable job system.
 
 ### Owner-only authentication
 
