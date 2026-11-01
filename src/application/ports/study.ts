@@ -96,8 +96,15 @@ export interface QueueFilter {
   sourceId?: string;
 }
 
+/** An excerpt with the document it belongs to. Merged items can span several sources. */
+export interface ExcerptView extends Excerpt {
+  sourceTitle: string;
+  sourceAttribution: string | null;
+}
+
 export interface ItemView extends GeneratedFields {
   id: string;
+  /** The source the item was extracted from (the first item's source, for merges). */
   sourceId: string;
   sourceTitle: string;
   sourceAttribution: string | null;
@@ -105,17 +112,37 @@ export interface ItemView extends GeneratedFields {
   status: ItemStatus;
   edited: boolean;
   createdAt: Date;
-  excerpts: Excerpt[];
+  excerpts: ExcerptView[];
 }
 
+export type MergeCandidate = GeneratedFields & { id: string; tags: string[] };
+
+/** A write targeted an item that is missing or no longer pending (for example, approved meanwhile). */
+export class ItemNotPendingError extends Error {
+  constructor(readonly itemIds: string[]) {
+    super(`Items not pending: ${itemIds.join(", ")}`);
+    this.name = "ItemNotPendingError";
+  }
+}
+
+/**
+ * Review writes. Every mutation checks "still pending" inside the same
+ * transaction as the write, so a concurrent approval can never be overwritten.
+ */
 export interface ReviewStore {
   listQueue(filter: QueueFilter): Promise<ItemView[]>;
   queueTags(): Promise<string[]>;
   getItem(id: string): Promise<ItemView | null>;
   /** Sets status on pending items only and records one event per item. Returns the ids changed. */
   setStatus(ids: string[], status: "approved" | "discarded", action: ReviewAction): Promise<string[]>;
+  /** Throws ItemNotPendingError if the item is missing or not pending. */
   updateFields(id: string, fields: GeneratedFields): Promise<void>;
+  /** Throws ItemNotPendingError if the item is missing or not pending. */
   setTags(id: string, tags: string[]): Promise<void>;
-  /** Creates one pending item holding every excerpt of the merged items; marks those as merged. */
-  merge(ids: string[], fields: GeneratedFields & { tags: string[] }): Promise<string>;
+  /**
+   * Locks the items, checks they are all pending (else ItemNotPendingError and
+   * nothing changes), builds the merged wording from the locked rows, creates one
+   * pending item holding every excerpt, and marks the originals as merged.
+   */
+  merge(ids: string[], build: (items: MergeCandidate[]) => GeneratedFields & { tags: string[] }): Promise<string>;
 }

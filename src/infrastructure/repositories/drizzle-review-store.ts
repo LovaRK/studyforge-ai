@@ -1,5 +1,5 @@
 import { and, arrayContains, asc, eq, inArray, sql } from "drizzle-orm";
-import type { ItemView, QueueFilter, ReviewStore } from "@/application/ports/study";
+import { ItemNotPendingError, type ItemView, type MergeCandidate, type QueueFilter, type ReviewStore } from "@/application/ports/study";
 import type { GeneratedFields, ReviewAction } from "@/domain/items/item";
 import type { Database } from "@/infrastructure/db/client";
 import { itemExcerpts, items, reviewEvents, sources } from "@/infrastructure/db/schema";
@@ -16,9 +16,19 @@ export class DrizzleReviewStore implements ReviewStore {
       .orderBy(asc(items.createdAt), asc(items.id));
     if (rows.length === 0) return [];
 
+    // Each excerpt carries its own document: merged items can span several sources.
     const excerpts = await this.db
-      .select()
+      .select({
+        itemId: itemExcerpts.itemId,
+        sourceId: itemExcerpts.sourceId,
+        text: itemExcerpts.text,
+        startOffset: itemExcerpts.startOffset,
+        endOffset: itemExcerpts.endOffset,
+        sourceTitle: sources.title,
+        sourceAttribution: sources.attribution,
+      })
       .from(itemExcerpts)
+      .innerJoin(sources, eq(itemExcerpts.sourceId, sources.id))
       .where(
         inArray(
           itemExcerpts.itemId,
@@ -43,7 +53,14 @@ export class DrizzleReviewStore implements ReviewStore {
       createdAt: item.createdAt,
       excerpts: excerpts
         .filter((e) => e.itemId === item.id)
-        .map((e) => ({ sourceId: e.sourceId, text: e.text, start: e.startOffset, end: e.endOffset })),
+        .map((e) => ({
+          sourceId: e.sourceId,
+          sourceTitle: e.sourceTitle,
+          sourceAttribution: e.sourceAttribution,
+          text: e.text,
+          start: e.startOffset,
+          end: e.endOffset,
+        })),
     }));
   }
 
@@ -85,27 +102,59 @@ export class DrizzleReviewStore implements ReviewStore {
 
   async updateFields(id: string, fields: GeneratedFields): Promise<void> {
     await this.db.transaction(async (tx) => {
-      await tx
+      // The status condition and the write are one statement, so a concurrent approval wins cleanly.
+      const changed = await tx
         .update(items)
         .set({ ...fields, edited: true })
-        .where(eq(items.id, id));
+        .where(and(eq(items.id, id), eq(items.status, "pending")))
+        .returning({ id: items.id });
+      if (changed.length === 0) throw new ItemNotPendingError([id]);
       await tx.insert(reviewEvents).values({ itemId: id, action: "edit" });
     });
   }
 
   async setTags(id: string, tags: string[]): Promise<void> {
     await this.db.transaction(async (tx) => {
-      await tx.update(items).set({ tags }).where(eq(items.id, id));
+      const changed = await tx
+        .update(items)
+        .set({ tags })
+        .where(and(eq(items.id, id), eq(items.status, "pending")))
+        .returning({ id: items.id });
+      if (changed.length === 0) throw new ItemNotPendingError([id]);
       await tx.insert(reviewEvents).values({ itemId: id, action: "tag", details: { tags } });
     });
   }
 
-  async merge(ids: string[], fields: GeneratedFields & { tags: string[] }): Promise<string> {
+  async merge(ids: string[], build: (items: MergeCandidate[]) => GeneratedFields & { tags: string[] }): Promise<string> {
     return this.db.transaction(async (tx) => {
-      const [first] = await tx.select({ sourceId: items.sourceId }).from(items).where(eq(items.id, ids[0]!));
+      // Lock the rows first: concurrent approvals and edits wait, and we read their final state.
+      const locked = await tx
+        .select({
+          id: items.id,
+          sourceId: items.sourceId,
+          status: items.status,
+          type: items.type,
+          title: items.title,
+          summary: items.summary,
+          question: items.question,
+          answer: items.answer,
+          tags: items.tags,
+        })
+        .from(items)
+        .where(inArray(items.id, ids))
+        .orderBy(asc(items.id))
+        .for("update");
+
+      const pendingIds = new Set(locked.filter((row) => row.status === "pending").map((row) => row.id));
+      const stale = ids.filter((id) => !pendingIds.has(id));
+      if (stale.length > 0) throw new ItemNotPendingError(stale);
+
+      // Back in the order the owner selected.
+      const ordered = ids.map((id) => locked.find((row) => row.id === id)!);
+      const fields = build(ordered);
       const [merged] = await tx
         .insert(items)
-        .values({ ...fields, sourceId: first!.sourceId, edited: true })
+        .values({ ...fields, sourceId: ordered[0]!.sourceId, edited: true })
         .returning({ id: items.id });
 
       const excerpts = await tx.select().from(itemExcerpts).where(inArray(itemExcerpts.itemId, ids));

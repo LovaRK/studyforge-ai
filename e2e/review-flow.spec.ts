@@ -96,3 +96,46 @@ test("upload rejects unsupported files", async ({ page }) => {
   await page.getByRole("button", { name: "Upload" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Upload a PDF" })).toBeVisible();
 });
+
+test("a merge across two sources highlights each excerpt in its own document (#2)", async ({ page }) => {
+  await signIn(page);
+
+  for (const [file, attribution] of [
+    ["memory-management.md", "Memory test note"],
+    ["concurrency-basics.md", "Concurrency test note"],
+  ] as const) {
+    await page.goto("/sources");
+    await page.getByLabel("File").setInputFiles(path.join(__dirname, "fixtures", file));
+    await page.getByLabel(/Attribution/).fill(attribution);
+    await page.getByRole("button", { name: "Upload" }).click();
+    await page.getByRole("button", { name: "Start extraction" }).click();
+    await expect(page.getByTestId("extraction-status")).toContainText("Extraction complete", { timeout: 30_000 });
+  }
+
+  await page.goto("/review");
+  const queue = page.getByRole("list", { name: "Queue" });
+  await queue
+    .getByRole("checkbox", { name: /Automatic Reference/ })
+    .first()
+    .check();
+  await queue
+    .getByRole("checkbox", { name: /Grand Central/ })
+    .first()
+    .check();
+  await page.getByRole("button", { name: "Merge selected" }).click();
+
+  const item = page.getByRole("article", { name: "Item" });
+  await expect(item.getByText("Merged · 2 excerpts")).toBeVisible();
+
+  const quotes = await item.locator("blockquote").allTextContents();
+  expect(quotes).toHaveLength(2);
+  await expect(page.getByTestId("source-highlight")).toHaveText(quotes.map((q) => q.trim()));
+  await expect(item.getByTestId("excerpt-source")).toHaveText([
+    "memory-management · Source: Memory test note",
+    "concurrency-basics · Source: Concurrency test note",
+  ]);
+  await expect(page.getByTestId("context-source")).toHaveText([
+    "memory-managementSource: Memory test note",
+    "concurrency-basicsSource: Concurrency test note",
+  ]);
+});

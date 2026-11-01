@@ -1,4 +1,4 @@
-import type { ItemView, ReviewStore } from "@/application/ports/study";
+import { ItemNotPendingError, type MergeCandidate, type ReviewStore } from "@/application/ports/study";
 import { normalizeTags, type GeneratedFields } from "@/domain/items/item";
 
 export class ReviewError extends Error {
@@ -8,11 +8,30 @@ export class ReviewError extends Error {
   }
 }
 
-async function requirePending(store: ReviewStore, id: string): Promise<ItemView> {
-  const item = await store.getItem(id);
-  if (!item) throw new ReviewError("Item not found.");
-  if (item.status !== "pending") throw new ReviewError("Only items in the review queue can be changed here.");
-  return item;
+const NOT_PENDING = "This item is no longer in the review queue. It may have just been approved, discarded or merged.";
+
+/** Turns the store's concurrency error into a message for the owner. */
+async function guarded<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (error instanceof ItemNotPendingError) throw new ReviewError(NOT_PENDING);
+    throw error;
+  }
+}
+
+/** The first item's wording leads; summaries and answers are joined; tags are combined. */
+export function mergeWording(items: MergeCandidate[]): GeneratedFields & { tags: string[] } {
+  const [first] = items as [MergeCandidate, ...MergeCandidate[]];
+  const join = (values: string[]) => [...new Set(values.map((v) => v.trim()).filter(Boolean))].join("\n\n");
+  return {
+    type: first.type,
+    title: first.title,
+    summary: join(items.map((item) => item.summary)),
+    question: first.question,
+    answer: join(items.map((item) => item.answer)),
+    tags: normalizeTags(items.flatMap((item) => item.tags)),
+  };
 }
 
 /** Review decisions. Only approved items ever reach the library. */
@@ -21,35 +40,15 @@ export function makeReview(store: ReviewStore) {
     approve: (ids: string[]) => store.setStatus(ids, "approved", "approve"),
     discard: (ids: string[]) => store.setStatus(ids, "discarded", "discard"),
 
-    async edit(id: string, fields: GeneratedFields): Promise<void> {
-      await requirePending(store, id);
-      await store.updateFields(id, fields);
-    },
+    edit: (id: string, fields: GeneratedFields) => guarded(() => store.updateFields(id, fields)),
 
-    async tag(id: string, tags: string[]): Promise<void> {
-      await requirePending(store, id);
-      await store.setTags(id, normalizeTags(tags));
-    },
+    tag: (id: string, tags: string[]) => guarded(() => store.setTags(id, normalizeTags(tags))),
 
-    /**
-     * Combines two or more pending items into one that keeps all their excerpts.
-     * The first item's wording leads; summaries and answers are joined.
-     */
+    /** Combines two or more pending items into one that keeps all their excerpts. */
     async merge(ids: string[]): Promise<string> {
       const unique = [...new Set(ids)];
       if (unique.length < 2) throw new ReviewError("Select at least two items to merge.");
-      const items = await Promise.all(unique.map((id) => requirePending(store, id)));
-      const [first] = items as [ItemView, ...ItemView[]];
-      const join = (values: string[]) => [...new Set(values.map((v) => v.trim()).filter(Boolean))].join("\n\n");
-
-      return store.merge(unique, {
-        type: first.type,
-        title: first.title,
-        summary: join(items.map((item) => item.summary)),
-        question: first.question,
-        answer: join(items.map((item) => item.answer)),
-        tags: normalizeTags(items.flatMap((item) => item.tags)),
-      });
+      return guarded(() => store.merge(unique, mergeWording));
     },
   };
 }
