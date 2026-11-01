@@ -1,9 +1,4 @@
 import "server-only";
-import { makeBackup } from "@/application/backup/export-backup";
-import { makeDemoLoader } from "@/application/demo/load-demo";
-import { DEMO_NOTE } from "@/application/demo/note";
-import { makeDashboard } from "@/application/dashboard/dashboard";
-import { DrizzleDashboardStore } from "@/infrastructure/repositories/drizzle-dashboard-store";
 import { makeQuiz } from "@/application/quiz/quiz";
 import { DrizzleQuizStore } from "@/infrastructure/repositories/drizzle-quiz-store";
 import { makeLogin } from "@/application/auth/login";
@@ -21,11 +16,7 @@ import { ScryptPasswordHasher } from "@/infrastructure/auth/scrypt-password-hash
 import { HmacSessionIssuer } from "@/infrastructure/auth/session-token";
 import { getDb } from "@/infrastructure/db/client";
 import { createLlmProvider } from "@/infrastructure/llm/factory";
-import { demoResponder } from "@/infrastructure/llm/demo-responder";
-import { MockLlmProvider } from "@/infrastructure/llm/mock-provider";
 import { logger } from "@/infrastructure/logging/logger";
-import { DrizzleBackupStore } from "@/infrastructure/repositories/drizzle-backup-store";
-import { DrizzleDemoStore } from "@/infrastructure/repositories/drizzle-demo-store";
 import { DrizzleExtractionStore, DrizzleLlmCache } from "@/infrastructure/repositories/drizzle-extraction-store";
 import { DrizzleLibraryStore } from "@/infrastructure/repositories/drizzle-library-store";
 import { DrizzleReviewStore } from "@/infrastructure/repositories/drizzle-review-store";
@@ -48,15 +39,7 @@ function build() {
   const reviewStore = new DrizzleReviewStore(db);
   const libraryStore = new DrizzleLibraryStore(db);
   const flashcards = makeFlashcards({ store: new DrizzleSrsStore(db), items: reviewStore });
-  const demoExtraction = new ExtractionRunner({
-    sources,
-    store: extraction,
-    cache: new DrizzleLlmCache(db),
-    llm: new MockLlmProvider(demoResponder),
-    model: "mock",
-    logger: logger.child({ component: "demo-extraction" }),
-    options: { requestsPerMinute: 0 },
-  });
+  const quiz = makeQuiz({ store: new DrizzleQuizStore(db) });
 
   return {
     env,
@@ -69,11 +52,8 @@ function build() {
     library: makeLibrary(libraryStore),
     conceptPages: makeConceptPages({ items: reviewStore, sources, library: libraryStore }),
     flashcards,
-    studySessions: makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards }),
-    dashboard: makeDashboard(new DrizzleDashboardStore(db)),
-    backup: makeBackup(new DrizzleBackupStore(db)),
-    demo: makeDemoLoader({ store: new DrizzleDemoStore(db), extraction: demoExtraction, note: DEMO_NOTE }),
-    quiz: makeQuiz({ store: new DrizzleQuizStore(db) }),
+    studySessions: makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards, quiz }),
+    quiz,
     textExtractor: new DocumentTextExtractor(),
     extractionRunner: new ExtractionRunner({
       sources,
