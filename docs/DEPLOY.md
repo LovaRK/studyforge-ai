@@ -13,16 +13,16 @@ Replit is the intended host for the mission submission. Deployment is an owner a
    - `GEMINI_API_KEY`: the Google AI Studio key.
    - `GEMINI_MODEL`: a currently available Flash or Flash-Lite model chosen from the Gemini model list.
    - Optional `LLM_REQUESTS_PER_MINUTE` (default: `10`).
-4. Press **Run** once. The workspace command applies migrations and starts Next.js on port 3000. Sign in and use **Load original demo note** to verify extraction without spending model quota.
+4. Press **Run** once. The workspace command installs packages from the lockfile, applies migrations and starts Next.js on port 3000. Sign in and use **Load original demo note** to verify extraction without spending model quota.
 
 ## Publish
 
-1. Open **Publishing**, then **Adjust settings**, and set the deployment type to **Reserved VM** (the shared 0.5 vCPU / 2 GB machine is enough). Do not use Autoscale: extraction keeps calling the model in the background for minutes after the upload request returns, and Autoscale only runs while requests are in flight, scales to zero when idle and may start several instances, each with its own extraction queue and login rate limiter. A Reserved VM is one always-on server, which is what the in-process queue assumes. It has a fixed monthly cost (US$15 for the shared machine when checked on 1 November 2026), paid from the plan's monthly credits first; confirm the price on the publishing screen before you publish.
+1. Open **Publishing**, then **Adjust settings**, and set the deployment type to **Reserved VM** (the shared 0.5 vCPU / 2 GB machine is enough). Do not use Autoscale: extraction keeps calling the model in the background for minutes after the upload request returns, but Autoscale scales to zero when idle and may run several instances, each with its own extraction queue and login rate limiter. A Reserved VM is one always-on server, which is what the in-process queue assumes. It has a fixed monthly cost (US$15 for the shared machine when checked on 1 November 2026), paid from the plan's monthly credits first; confirm the price on the publishing screen before you publish. `.replit` does not set the deployment type, and the publishing screen may preselect Autoscale, so check the type there too.
 2. In production database settings, enable **Create production database**. Copy development data only if it is intentionally safe to publish; the original demo is safe, private study material is not.
 3. Confirm the production deployment has its own `DATABASE_URL` and the five required secrets above.
 4. Publish. Replit runs `npm ci --include=dev && npm run build`, then applies migrations and starts the production server. A failed migration stops startup rather than serving code against an old schema.
 
-The `.replit` file selects Node 22, disables automatic dependency guessing, exposes local port 3000 and uses `npm ci --include=dev` so the lockfile controls every installed package. The build (`typescript`, `tailwindcss`) and the startup migration (`tsx`, `dotenv`) need development dependencies, so they are installed even if the build runs with `NODE_ENV=production`.
+The `.replit` file selects Node 22, disables automatic dependency guessing, exposes local port 3000 and uses `npm ci --include=dev` in both the workspace and the deployment so the lockfile controls every installed package. The build (`typescript`, `tailwindcss`, `@tailwindcss/turbopack`) and the startup migration (`tsx`, `dotenv`) need development dependencies, so they are installed even if the build runs with `NODE_ENV=production`.
 
 ## Mandatory privacy and persistence checks
 
