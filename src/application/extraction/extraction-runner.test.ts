@@ -127,6 +127,37 @@ describe("ExtractionRunner", () => {
     expect(sleeps).toEqual([10_000]);
   });
 
+  it("spaces calls globally when several sources extract at once (#4)", async () => {
+    const db = new InMemoryStudyDb();
+    const ids: string[] = [];
+    for (const n of [1, 2, 3]) {
+      const text = `Q: Topic ${n}?\nSentence number ${n} explains a distinct topic in enough words.`;
+      const source = await db.create(
+        { title: `S${n}`, attribution: null, fileName: "n.txt", mimeType: "text/plain", text, wordCount: 12 },
+        [{ ordinal: 0, heading: null, start: 0, end: text.length, wordCount: 12 }],
+      );
+      ids.push(source.id);
+    }
+    // Frozen clock: every call asks for its slot at t=0, so the waits show the reserved slots.
+    const waits: number[] = [];
+    const runner = new ExtractionRunner({
+      sources: db,
+      store: db,
+      cache: db,
+      llm: new MockLlmProvider(responder),
+      model: "test-model",
+      logger: createLogger({}, () => {}),
+      options: { requestsPerMinute: 600 },
+      sleep: async (ms) => void waits.push(ms),
+      now: () => 0,
+    });
+
+    for (const id of ids) runner.start(id);
+    await Promise.all(ids.map((id) => runner.whenIdle(id)));
+
+    expect(waits.sort((a, b) => a - b)).toEqual([100, 200]);
+  });
+
   it("does not start a second run for the same source", async () => {
     const { runner, source } = await setup();
     expect(runner.start(source.id)).toBe(true);
