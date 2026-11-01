@@ -1,64 +1,23 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { ExtractionRunner } from "@/application/extraction/extraction-runner";
 import { makeLibrary } from "@/application/library/library";
-import type { ItemView } from "@/application/ports/study";
 import { makeReview } from "@/application/review/review";
-import { importSource } from "@/application/sources/import-source";
 import { itemSearch } from "@/infrastructure/db/schema";
-import { demoResponder } from "@/infrastructure/llm/demo-responder";
-import { MockLlmProvider } from "@/infrastructure/llm/mock-provider";
-import { createLogger } from "@/infrastructure/logging/logger";
-import { DocumentTextExtractor } from "@/infrastructure/text/document-text-extractor";
 import { connect, truncateAll } from "@/test/integration/database";
-import { DrizzleExtractionStore, DrizzleLlmCache } from "./drizzle-extraction-store";
+import { makeIngest, MEMORY_NOTE, pick, QUEUES_NOTE } from "@/test/integration/study";
 import { DrizzleLibraryStore } from "./drizzle-library-store";
 import { DrizzleReviewStore } from "./drizzle-review-store";
-import { DrizzleSourceStore } from "./drizzle-source-store";
 import { indexApprovedItems } from "./item-search-index";
 
-const MEMORY = `# Memory
-
-Automatic Reference Counting frees an instance once nothing holds a strong reference to it.
-A weak reference does not keep the instance alive and becomes nil when it is freed.
-An unowned reference also skips the retain but must never outlive its target.`;
-
-const QUEUES = `# Queues
-
-Grand Central Dispatch runs work items on queues that the system manages for you.
-The main queue is serial, so user interface updates should always be sent to it.`;
-
 const { client, db } = connect();
-const sources = new DrizzleSourceStore(db);
-const extraction = new DrizzleExtractionStore(db);
 const reviewStore = new DrizzleReviewStore(db);
 const review = makeReview(reviewStore);
 const store = new DrizzleLibraryStore(db);
 const library = makeLibrary(store);
 
-/** Imports a note, extracts it with the offline model, and returns its pending items. */
-async function ingest(name: string, text: string) {
-  const source = await importSource(
-    { sources, extractor: new DocumentTextExtractor() },
-    { file: { name, mimeType: "text/markdown", bytes: new TextEncoder().encode(text) } },
-  );
-  const runner = new ExtractionRunner({
-    sources,
-    store: extraction,
-    cache: new DrizzleLlmCache(db),
-    llm: new MockLlmProvider(demoResponder),
-    model: "mock",
-    logger: createLogger({}, () => {}),
-    options: { requestsPerMinute: 0 },
-  });
-  runner.start(source.id);
-  await runner.whenIdle(source.id);
-  return { source, items: await reviewStore.listQueue({ sourceId: source.id }) };
-}
+const ingest = makeIngest(db);
 
 const ids = (list: { id: string }[]) => list.map((item) => item.id);
-/** The pending item quoting `words`. Items from one chunk share a timestamp, so queue order is not stable. */
-const pick = (items: ItemView[], words: string) => items.find((item) => item.excerpts.some((e) => e.text.includes(words)))!;
 const flat = async (filter: Parameters<typeof library.browse>[0]) => (await library.browse(filter)).groups.flatMap((g) => g.items);
 
 beforeEach(() => truncateAll(db));
@@ -66,7 +25,7 @@ afterAll(() => client.end());
 
 describe("Postgres library store", () => {
   it("lists approved items only and indexes them in the approval transaction", async () => {
-    const { items } = await ingest("memory.md", MEMORY);
+    const { items } = await ingest("memory.md", MEMORY_NOTE);
     expect(items).toHaveLength(3);
     const [approved, discarded] = items;
     await review.approve([approved!.id]);
@@ -77,7 +36,7 @@ describe("Postgres library store", () => {
   });
 
   it("finds an item by a word prefix that appears only in its verbatim excerpt, and marks the match", async () => {
-    const { items } = await ingest("memory.md", MEMORY);
+    const { items } = await ingest("memory.md", MEMORY_NOTE);
     const item = pick(items, "Automatic Reference Counting");
     await review.edit(item.id, { type: "concept", title: "Ownership", summary: "Who keeps objects alive.", question: "Q?", answer: "A." });
     await review.approve([item.id]);
@@ -90,7 +49,7 @@ describe("Postgres library store", () => {
   });
 
   it("ranks a title match above a match that is only in the excerpt", async () => {
-    const { items } = await ingest("memory.md", MEMORY);
+    const { items } = await ingest("memory.md", MEMORY_NOTE);
     const inExcerpt = pick(items, "Automatic Reference Counting");
     const inTitle = pick(items, "weak reference");
     await review.edit(inExcerpt.id, { type: "term", title: "Automatic counting", summary: "S.", question: "Q?", answer: "A." });
@@ -103,7 +62,7 @@ describe("Postgres library store", () => {
   });
 
   it("requires every word to match and returns nothing, without failing, for stop words or odd input", async () => {
-    const { items } = await ingest("queues.md", QUEUES);
+    const { items } = await ingest("queues.md", QUEUES_NOTE);
     await review.approve(ids(items));
 
     expect((await flat({ query: "grand dispatch" })).length).toBe(1);
@@ -113,8 +72,8 @@ describe("Postgres library store", () => {
   });
 
   it("filters by type, tag and source, and reports facets of approved items only", async () => {
-    const memory = await ingest("memory.md", MEMORY);
-    const queues = await ingest("queues.md", QUEUES);
+    const memory = await ingest("memory.md", MEMORY_NOTE);
+    const queues = await ingest("queues.md", QUEUES_NOTE);
     // The offline model makes the first sentence of each note a concept and the rest terms.
     const arc = pick(memory.items, "Automatic Reference Counting");
     const gcd = pick(queues.items, "Grand Central Dispatch");
@@ -141,8 +100,8 @@ describe("Postgres library store", () => {
   });
 
   it("indexes a merged item with the excerpts of every part, across sources", async () => {
-    const memory = await ingest("memory.md", MEMORY);
-    const queues = await ingest("queues.md", QUEUES);
+    const memory = await ingest("memory.md", MEMORY_NOTE);
+    const queues = await ingest("queues.md", QUEUES_NOTE);
     const merged = await review.merge([pick(memory.items, "Counting").id, pick(queues.items, "Dispatch").id]);
     await review.approve([merged]);
 
@@ -154,7 +113,7 @@ describe("Postgres library store", () => {
   });
 
   it("re-indexing picks up changes and ignores items that are not approved", async () => {
-    const { items } = await ingest("memory.md", MEMORY);
+    const { items } = await ingest("memory.md", MEMORY_NOTE);
     const [approved, pending] = items;
     await review.approve([approved!.id]);
     await db.execute(sql`update items set title = 'Zebra crossing' where id = ${approved!.id}`);
@@ -166,8 +125,8 @@ describe("Postgres library store", () => {
   });
 
   it("relates approved items by shared tags first, then by source, never including the item itself", async () => {
-    const memory = await ingest("memory.md", MEMORY);
-    const queues = await ingest("queues.md", QUEUES);
+    const memory = await ingest("memory.md", MEMORY_NOTE);
+    const queues = await ingest("queues.md", QUEUES_NOTE);
     const arc = pick(memory.items, "Automatic Reference Counting");
     const weak = pick(memory.items, "weak reference");
     const unowned = pick(memory.items, "unowned reference");

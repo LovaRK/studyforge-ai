@@ -2,6 +2,7 @@ import "server-only";
 import { makeLogin } from "@/application/auth/login";
 import { ensureOwnerCredential } from "@/application/auth/owner-credential";
 import { ExtractionRunner } from "@/application/extraction/extraction-runner";
+import { makeFlashcards } from "@/application/flashcards/flashcards";
 import { makeConceptPages } from "@/application/library/concept-page";
 import { makeLibrary } from "@/application/library/library";
 import { makeReview } from "@/application/review/review";
@@ -17,6 +18,7 @@ import { DrizzleExtractionStore, DrizzleLlmCache } from "@/infrastructure/reposi
 import { DrizzleLibraryStore } from "@/infrastructure/repositories/drizzle-library-store";
 import { DrizzleReviewStore } from "@/infrastructure/repositories/drizzle-review-store";
 import { DrizzleSourceStore } from "@/infrastructure/repositories/drizzle-source-store";
+import { DrizzleSrsStore } from "@/infrastructure/repositories/drizzle-srs-store";
 import { DocumentTextExtractor } from "@/infrastructure/text/document-text-extractor";
 
 /** Composition root: the only place that wires infrastructure into use cases. */
@@ -43,6 +45,7 @@ function build() {
     review: makeReview(reviewStore),
     library: makeLibrary(libraryStore),
     conceptPages: makeConceptPages({ items: reviewStore, sources, library: libraryStore }),
+    flashcards: makeFlashcards({ store: new DrizzleSrsStore(db), items: reviewStore }),
     textExtractor: new DocumentTextExtractor(),
     extractionRunner: new ExtractionRunner({
       sources,
