@@ -9,7 +9,9 @@ async function main() {
   console.log(`Demo ready: ${source.title}`);
 }
 
-main().then(() => process.exit(0)).catch((error: unknown) => {
-  console.error("Demo seed failed:", error instanceof Error ? error.message : "Unknown error");
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((error: unknown) => {
+    console.error("Demo seed failed:", error instanceof Error ? error.message : "Unknown error");
+    process.exit(1);
+  });
