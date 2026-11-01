@@ -1,0 +1,23 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# personal study material is never committed
+StudyNotes/
+*.pdf
+
+# dependencies / build
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+build/
+.DS_Store
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+.vercel

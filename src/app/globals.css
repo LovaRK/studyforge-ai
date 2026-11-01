@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* Calm, low-contrast chrome; body text keeps strong contrast for reading. */
+:root {
+  --background: #f7f6f3;
+  --foreground: #1f2328;
+  --surface: #ffffff;
+  --subtle: #efede8;
+  --line: #dedad2;
+  --muted: #5f6368;
+  --accent: #2f6f62;
+  --accent-contrast: #ffffff;
+  --danger: #b42318;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #15171a;
+    --foreground: #e8e6e1;
+    --surface: #1d2024;
+    --subtle: #262a2f;
+    --line: #33383e;
+    --muted: #a0a4a8;
+    --accent: #6bb8a6;
+    --accent-contrast: #0f1a17;
+    --danger: #f97066;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
