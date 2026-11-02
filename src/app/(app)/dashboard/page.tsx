@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { MasteryGroup } from "@/application/dashboard/dashboard";
-import { buttonClass } from "@/components/ui";
+import { BrandMark, buttonClass } from "@/components/ui";
 import { container } from "@/server/container";
 import { requireOwner } from "@/server/session";
 import { DemoButton } from "./demo-button";
@@ -43,19 +43,22 @@ function Mastery({ title, groups, kind }: { title: string; groups: MasteryGroup[
 export default async function DashboardPage() {
   await requireOwner();
   const d = await container().dashboard.read();
+  const busiest = Math.max(1, ...d.days.map((day) => day.count));
   return (
     <div className="space-y-6">
-      <header className="relative overflow-hidden rounded-2xl border border-line bg-surface p-6 sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-accent">Your understanding</p>
-        <h1 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">
+      <header className="hero-surface relative overflow-hidden rounded-2xl border border-line bg-surface p-6 sm:p-8">
+        <div className="blob -right-16 -top-20 hidden size-72 bg-accent/25 sm:block" aria-hidden="true" />
+        <BrandMark className="absolute right-8 top-8 hidden size-16 rotate-6 opacity-90 sm:inline-grid" />
+        <p className="relative text-xs font-semibold uppercase tracking-widest text-accent">Your understanding</p>
+        <h1 className="relative mt-3 max-w-xl bg-linear-to-br from-foreground via-foreground to-accent bg-clip-text text-3xl font-semibold tracking-tight text-transparent sm:text-4xl">
           Small sessions.
           <br />
           Knowledge that stays.
         </h1>
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted">
+        <p className="relative mt-3 max-w-xl text-sm leading-relaxed text-muted">
           Your own notes, checked against their sources. Build recall one approved idea at a time.
         </p>
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="relative mt-6 flex flex-wrap gap-2">
           <Link href="/flashcards" className={buttonClass.primary}>
             Study {d.due} due {d.due === 1 ? "card" : "cards"}
           </Link>
@@ -82,9 +85,16 @@ export default async function DashboardPage() {
             `${d.quizAnswers} recorded ${d.quizAnswers === 1 ? "answer" : "answers"}`,
           ],
         ].map(([label, value, note]) => (
-          <div key={label} className="rounded-2xl border border-line bg-surface p-5">
+          <div
+            key={label}
+            className="group relative overflow-hidden rounded-2xl border border-line bg-surface p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            <span
+              className="absolute inset-x-0 top-0 h-0.5 bg-linear-to-r from-accent to-accent-2 opacity-60 transition group-hover:opacity-100"
+              aria-hidden="true"
+            />
             <dt className="text-sm text-muted">{label}</dt>
-            <dd className="mt-2 text-3xl font-semibold tabular-nums">{value}</dd>
+            <dd className="mt-2 text-3xl font-semibold tabular-nums text-foreground">{value}</dd>
             <dd className="mt-2 text-xs text-muted">{note}</dd>
           </div>
         ))}
@@ -100,7 +110,14 @@ export default async function DashboardPage() {
           <ol className="mt-5 grid grid-cols-7 gap-2">
             {d.days.map((day) => (
               <li key={day.date} className="min-w-0 text-center">
-                <div className="rounded-lg bg-subtle py-5 text-lg font-semibold tabular-nums">{day.count}</div>
+                <div
+                  className="rounded-lg py-5 text-lg font-semibold tabular-nums transition hover:scale-105"
+                  style={{
+                    background: `color-mix(in srgb, var(--accent) ${day.count ? 14 + Math.round((day.count / busiest) * 46) : 0}%, var(--subtle))`,
+                  }}
+                >
+                  {day.count}
+                </div>
                 <time dateTime={day.date} className="mt-2 block text-xs text-muted">
                   {day.date.slice(5)}
                 </time>
@@ -129,7 +146,7 @@ export default async function DashboardPage() {
           </p>
         </section>
       </div>
-      <details className="rounded-xl border border-line p-4 text-sm text-muted">
+      <details className="rounded-xl border border-line bg-surface/60 p-4 text-sm text-muted">
         <summary className="cursor-pointer font-medium text-foreground">How these numbers work</summary>
         <p className="mt-3">
           Mastery is a study signal, not a knowledge assessment: an established card has at least two consecutive successful SM-2 reviews.
