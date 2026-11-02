@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { buttonClass, inputClass } from "@/components/ui";
+import { buttonClass, inputClass, Spinner } from "@/components/ui";
 import { uploadSourceAction, type UploadState } from "./actions";
 
 export function UploadForm() {
@@ -43,6 +43,7 @@ export function UploadForm() {
         </p>
       )}
       <button type="submit" disabled={pending} className={buttonClass.primary}>
+        {pending && <Spinner />}
         {pending ? "Reading file…" : "Upload"}
       </button>
     </form>

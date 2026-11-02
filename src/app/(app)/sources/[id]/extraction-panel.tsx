@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import type { ExtractionProgress } from "@/application/ports/study";
-import { buttonClass } from "@/components/ui";
+import { buttonClass, Spinner } from "@/components/ui";
 import { startExtractionAction } from "../actions";
 
 export function ExtractionPanel({ sourceId, progress, running }: { sourceId: string; progress: ExtractionProgress; running: boolean }) {
@@ -43,7 +43,10 @@ export function ExtractionPanel({ sourceId, progress, running }: { sourceId: str
         aria-valuemax={100}
         aria-valuenow={percent}
       >
-        <div className="h-full bg-accent transition-all" style={{ width: `${percent}%` }} />
+        <div
+          className="h-full rounded-full bg-linear-to-r from-accent to-accent-2 transition-all duration-700 ease-out"
+          style={{ width: `${percent}%` }}
+        />
       </div>
       <p className="text-sm text-muted" data-testid="extraction-status">
         {complete ? "Extraction complete" : running ? "Running" : "Idle"} · {doneChunks} of {totalChunks} chunks done
@@ -58,6 +61,7 @@ function StartButton({ label, disabled }: { label: string; disabled: boolean }) 
   const { pending } = useFormStatus();
   return (
     <button type="submit" className={buttonClass.primary} disabled={disabled || pending}>
+      {pending && <Spinner />}
       {label}
     </button>
   );

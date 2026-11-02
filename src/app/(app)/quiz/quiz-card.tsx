@@ -60,7 +60,10 @@ export function QuizCard({
         </p>
       )}
       {question ? (
-        <article aria-label="Quiz question" className="space-y-5 rounded-xl border border-line bg-surface p-5">
+        <article
+          aria-label="Quiz question"
+          className="animate-[rise_320ms_ease-out] space-y-5 rounded-2xl border border-line bg-surface p-5 shadow-lg sm:p-6"
+        >
           <GeneratedLabel />
           <h2 className="text-lg font-medium">{question.prompt}</h2>
           <p className="text-sm text-muted">
@@ -73,7 +76,7 @@ export function QuizCard({
                 type="button"
                 disabled={pending || !!feedback}
                 onClick={() => answer(index)}
-                className={`${buttonClass.secondary} justify-start whitespace-pre-wrap break-words p-3 text-left ${feedback?.correctIndex === index ? "border-accent" : ""}`}
+                className={`${buttonClass.secondary} justify-start whitespace-pre-wrap break-words p-3 text-left ${feedback?.correctIndex === index ? "border-accent bg-accent/10" : ""}`}
               >
                 <span>
                   <span className="block text-xs text-muted">
@@ -86,14 +89,16 @@ export function QuizCard({
             ))}
           </div>
           {feedback && (
-            <section aria-label="Answer feedback" className="space-y-3 border-t border-line pt-4">
+            <section aria-label="Answer feedback" className="animate-[rise_260ms_ease-out] space-y-3 border-t border-line pt-4">
               <p role="status" className="font-semibold">
                 {feedback.correct ? "Correct" : "Not quite"}
               </p>
               <SourceFactLabel />
               {feedback.excerpts.map((e, i) => (
                 <figure key={i}>
-                  <blockquote className="whitespace-pre-wrap border-l-2 border-accent pl-3">{e.text}</blockquote>
+                  <blockquote className="whitespace-pre-wrap rounded-r-lg border-l-2 border-accent bg-accent/5 py-2 pl-3 pr-2">
+                    {e.text}
+                  </blockquote>
                   <figcaption className="mt-1 text-xs text-muted">
                     {e.sourceTitle}
                     {e.sourceAttribution && ` · ${e.sourceAttribution}`}

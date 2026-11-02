@@ -69,7 +69,10 @@ export function FlashcardCard({ card, sessionId, onGraded }: Props) {
   }, [grade, revealed]);
 
   return (
-    <article className="space-y-5 rounded-lg border border-line bg-surface p-5" aria-label="Flashcard">
+    <article
+      className="animate-[rise_320ms_ease-out] space-y-5 rounded-2xl border border-line bg-surface p-5 shadow-lg sm:p-6"
+      aria-label="Flashcard"
+    >
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="accent">{ITEM_TYPE_LABELS[card.type]}</Badge>
         {card.isNew && <Badge>New</Badge>}
@@ -89,7 +92,7 @@ export function FlashcardCard({ card, sessionId, onGraded }: Props) {
         </button>
       ) : (
         <>
-          <section className="space-y-1 border-t border-line pt-4" aria-label="Answer">
+          <section className="animate-[rise_260ms_ease-out] space-y-1 border-t border-line pt-4" aria-label="Answer">
             <GeneratedLabel />
             <p className="whitespace-pre-line leading-relaxed">{card.answer}</p>
           </section>
@@ -97,7 +100,9 @@ export function FlashcardCard({ card, sessionId, onGraded }: Props) {
             <SourceFactLabel />
             {card.excerpts.map((excerpt, i) => (
               <figure key={i} className="space-y-1">
-                <blockquote className="border-l-2 border-accent pl-3 text-sm leading-relaxed">{excerpt.text}</blockquote>
+                <blockquote className="rounded-r-lg border-l-2 border-accent bg-accent/5 py-2 pl-3 pr-2 text-sm leading-relaxed">
+                  {excerpt.text}
+                </blockquote>
                 <figcaption className="pl-3 text-xs text-muted">
                   {excerpt.sourceTitle}
                   {excerpt.sourceAttribution && ` · Source: ${excerpt.sourceAttribution}`}

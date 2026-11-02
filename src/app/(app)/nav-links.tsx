@@ -32,7 +32,7 @@ export function NavLinks() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm ${active ? "bg-subtle font-medium text-foreground" : "text-muted hover:text-foreground"}`}
+            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition duration-150 ${active ? "bg-accent/10 font-medium text-accent shadow-[inset_0_0_0_1px] shadow-accent/25" : "text-muted hover:bg-subtle hover:text-foreground"}`}
           >
             {label}
           </Link>

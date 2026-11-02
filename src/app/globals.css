@@ -9,8 +9,12 @@
   --line: #dedad2;
   --muted: #5f6368;
   --accent: #2f6f62;
+  --accent-2: #3f5fa8;
   --accent-contrast: #ffffff;
   --danger: #b42318;
+  --glow: rgb(47 111 98 / 0.14);
+  --shadow-card: 0 1px 2px rgb(31 35 40 / 0.04), 0 4px 16px -6px rgb(31 35 40 / 0.08);
+  --shadow-raised: 0 2px 4px rgb(31 35 40 / 0.05), 0 16px 32px -12px rgb(31 35 40 / 0.16);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,8 +26,12 @@
     --line: #33383e;
     --muted: #a0a4a8;
     --accent: #6bb8a6;
+    --accent-2: #8aa4e6;
     --accent-contrast: #0f1a17;
     --danger: #f97066;
+    --glow: rgb(107 184 166 / 0.12);
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px -8px rgb(0 0 0 / 0.5);
+    --shadow-raised: 0 2px 4px rgb(0 0 0 / 0.3), 0 18px 36px -14px rgb(0 0 0 / 0.65);
   }
 }
 
@@ -35,6 +43,7 @@
   --color-line: var(--line);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
   --color-accent-contrast: var(--accent-contrast);
   --color-danger: var(--danger);
   --font-sans: var(--font-geist-sans);
@@ -42,6 +51,135 @@
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(60rem 30rem at 100% -10%, var(--glow), transparent 70%),
+    radial-gradient(40rem 24rem at -10% 0%, rgb(63 95 168 / 0.06), transparent 70%), var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* In the components layer, so Tailwind utilities (shadow-xl, hover:…) still win. */
+@layer components {
+  /* Every bordered surface card gets a soft lift; linked cards rise on hover. */
+  .bg-surface.border-line {
+    box-shadow: var(--shadow-card);
+  }
+  a.bg-surface.border-line {
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease,
+      border-color 160ms ease;
+  }
+  a.bg-surface.border-line:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-raised);
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  }
+
+  /* Hero panels: a quiet gradient wash behind the content. */
+  .hero-surface {
+    background-image:
+      radial-gradient(28rem 16rem at 100% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+      radial-gradient(22rem 14rem at 0% 100%, color-mix(in srgb, var(--accent-2) 12%, transparent), transparent 70%);
+  }
+}
+
+/* Progress bars: rounded track with a gradient fill. */
+progress {
+  appearance: none;
+  border: 0;
+  background: var(--subtle);
+}
+progress::-webkit-progress-bar {
+  background: var(--subtle);
+  border-radius: 999px;
+}
+progress::-webkit-progress-value {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 999px;
+  transition: width 600ms ease;
+}
+progress::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 999px;
+}
+
+/* Animates `translate`, not `transform`, so hover lifts on the same elements still work. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  to {
+    opacity: 1;
+    translate: none;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(2rem, -1.5rem) scale(1.08);
+  }
+}
+
+/* Page content eases in, section by section (main > page root > sections). */
+.page-enter > * > * {
+  animation: rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.page-enter > * > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+.page-enter > * > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+.page-enter > * > *:nth-child(n + 4) {
+  animation-delay: 180ms;
+}
+
+.skeleton {
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg, var(--subtle) 0%, color-mix(in srgb, var(--subtle) 40%, var(--surface)) 50%, var(--subtle) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(48px);
+  opacity: 0.55;
+  animation: float 14s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }
