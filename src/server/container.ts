@@ -1,4 +1,5 @@
 import "server-only";
+import { makeBackup } from "@/application/backup/export-backup";
 import { makeDemoLoader } from "@/application/demo/load-demo";
 import { DEMO_NOTE } from "@/application/demo/note";
 import { makeDashboard } from "@/application/dashboard/dashboard";
@@ -23,6 +24,7 @@ import { createLlmProvider } from "@/infrastructure/llm/factory";
 import { demoResponder } from "@/infrastructure/llm/demo-responder";
 import { MockLlmProvider } from "@/infrastructure/llm/mock-provider";
 import { logger } from "@/infrastructure/logging/logger";
+import { DrizzleBackupStore } from "@/infrastructure/repositories/drizzle-backup-store";
 import { DrizzleDemoStore } from "@/infrastructure/repositories/drizzle-demo-store";
 import { DrizzleExtractionStore, DrizzleLlmCache } from "@/infrastructure/repositories/drizzle-extraction-store";
 import { DrizzleLibraryStore } from "@/infrastructure/repositories/drizzle-library-store";
@@ -69,6 +71,7 @@ function build() {
     flashcards,
     studySessions: makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards }),
     dashboard: makeDashboard(new DrizzleDashboardStore(db)),
+    backup: makeBackup(new DrizzleBackupStore(db)),
     demo: makeDemoLoader({ store: new DrizzleDemoStore(db), extraction: demoExtraction, note: DEMO_NOTE }),
     quiz: makeQuiz({ store: new DrizzleQuizStore(db) }),
     textExtractor: new DocumentTextExtractor(),

@@ -66,6 +66,9 @@ export default async function DashboardPage() {
             Review {d.pending} pending
           </Link>
           <DemoButton />
+          <a href="/api/backup" className={buttonClass.secondary} download>
+            Download JSON backup
+          </a>
         </div>
       </header>
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
