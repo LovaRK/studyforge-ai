@@ -13,6 +13,7 @@ Replit is the intended host for the mission submission. Deployment is an owner a
    - `GEMINI_API_KEY`: the Google AI Studio key.
    - `GEMINI_MODEL`: a currently available Flash or Flash-Lite model chosen from the Gemini model list.
    - Optional `LLM_REQUESTS_PER_MINUTE` (default: `10`).
+   - Leave `TRUSTED_PROXY_HOPS` and `TRUSTED_PROXY_HOPS_VERIFIED` unset. Replit's append-only forwarding header contains client-controlled values, so enabling a hop count would reopen login rate-limit spoofing.
 4. Press **Run** once. The workspace command installs packages from the lockfile, applies migrations and starts Next.js on port 3000. Sign in and use **Load original demo note** to verify extraction without spending model quota.
 
 ## Publish

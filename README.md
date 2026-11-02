@@ -69,7 +69,7 @@ Dependencies point inwards: use cases depend on port interfaces, and infrastruct
 - Owner-only: the password comes from `OWNER_PASSWORD` and is stored as an scrypt hash, created on first boot and re-hashed if the value changes.
 - Sessions are httpOnly, SameSite cookies signed with HMAC-SHA256 (`SESSION_SECRET`), valid for 7 days.
 - `src/proxy.ts` sends every signed-out request to the login screen (APIs get `401`), and each page and action checks the session again.
-- Failed logins are rate-limited (5 per 15 minutes per client). Pages are served with `noindex` and anti-framing headers.
+- Failed logins are rate-limited (5 per 15 minutes in one safe bucket; forwarded headers are not trusted). Pages are served with `noindex` and anti-framing headers.
 
 ## Local setup
 

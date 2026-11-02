@@ -24,8 +24,8 @@ describe("parseEnv", () => {
 
   it("rejects unverified trusted proxy hops", () => {
     expect(() => parseEnv({ ...base, LLM_PROVIDER: "mock", TRUSTED_PROXY_HOPS: "1" })).toThrow(/TRUSTED_PROXY_HOPS_VERIFIED/);
-    expect(
-      parseEnv({ ...base, LLM_PROVIDER: "mock", TRUSTED_PROXY_HOPS: "1", TRUSTED_PROXY_HOPS_VERIFIED: "true" }).TRUSTED_PROXY_HOPS,
-    ).toBe(1);
+    expect(() => parseEnv({ ...base, LLM_PROVIDER: "mock", TRUSTED_PROXY_HOPS: "1", TRUSTED_PROXY_HOPS_VERIFIED: "true" })).toThrow(
+      /append-only/,
+    );
   });
 });

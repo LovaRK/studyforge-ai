@@ -15,7 +15,7 @@ export const envSchema = z
     GEMINI_MODEL: z.string().optional(),
     /** Spacing for model calls; 0 disables throttling (the mock provider). */
     LLM_REQUESTS_PER_MINUTE: z.coerce.number().int().min(0).max(1000).optional(),
-    /** Number of proxy hops whose forwarding headers have been independently verified. */
+    /** Reserved for a future proxy integration that supplies authenticated client metadata. */
     TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
     TRUSTED_PROXY_HOPS_VERIFIED: z
       .enum(["true", "false"])
@@ -31,11 +31,11 @@ export const envSchema = z
         ctx.addIssue({ code: "custom", path: ["GEMINI_MODEL"], message: "required when LLM_PROVIDER=gemini" });
       }
     }
-    if (env.TRUSTED_PROXY_HOPS > 0 && !env.TRUSTED_PROXY_HOPS_VERIFIED) {
+    if (env.TRUSTED_PROXY_HOPS > 0) {
       ctx.addIssue({
         code: "custom",
         path: ["TRUSTED_PROXY_HOPS_VERIFIED"],
-        message: "must be true after the deployment proxy behavior has been independently verified",
+        message: "nonzero proxy hops are unsupported with append-only forwarding headers; leave this at 0",
       });
     }
   });

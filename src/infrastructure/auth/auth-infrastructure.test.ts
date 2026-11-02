@@ -74,8 +74,8 @@ describe("MemoryLoginRateLimiter", () => {
 describe("clientKeyFromForwardedFor", () => {
   it("uses the address appended by our proxy, not one the client sent", () => {
     const options = { trustedProxyHops: 1, verified: true };
-    expect(clientKeyFromForwardedFor("203.0.113.7, 10.0.0.1", options)).toBe("203.0.113.7");
-    expect(clientKeyFromForwardedFor(" 9.9.9.9 ,  10.0.0.1 ", options)).toBe("9.9.9.9");
+    expect(clientKeyFromForwardedFor("203.0.113.7, 10.0.0.1", options)).toBe("global");
+    expect(clientKeyFromForwardedFor(" 9.9.9.9 ,  10.0.0.1 ", options)).toBe("global");
   });
 
   it("falls back to one local bucket without a usable header", () => {
