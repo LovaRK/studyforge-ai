@@ -90,7 +90,8 @@ export function makeStudySessions({ store, flashcards, quiz, now = () => new Dat
       const { card } = await flashcards.next(scope, seen);
       // A due card always comes first; after that, odd steps (or no card left) try a question.
       if (card && (!card.isNew || summary.reviewed % 2 === 0)) return { kind: "card", card, endsAt, summary };
-      const question = quiz ? await quiz.nextQuestion(scope, seen) : null;
+      // Keep a waiting new card from being consumed by the alternating quiz step.
+      const question = quiz ? await quiz.nextQuestion(scope, card ? [...seen, card.itemId] : seen) : null;
       if (question) return { kind: "quiz", question, endsAt, summary };
       return card ? { kind: "card", card, endsAt, summary } : done("empty");
     },

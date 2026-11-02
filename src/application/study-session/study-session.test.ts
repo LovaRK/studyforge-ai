@@ -122,7 +122,7 @@ describe("study sessions", () => {
     expect((await api.next("s1")).kind).toBe("card");
     state.reviewed = 1;
     expect(await api.next("s1")).toMatchObject({ kind: "quiz", question });
-    expect(quizCalls.at(-1)).toEqual(["seen"]);
+    expect(quizCalls.at(-1)).toEqual(["seen", "i1"]);
     state.questions = false;
     expect((await api.next("s1")).kind).toBe("card");
     state.reviewed = 2;
