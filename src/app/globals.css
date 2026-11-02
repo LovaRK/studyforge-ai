@@ -125,15 +125,6 @@ progress::-moz-progress-bar {
   }
 }
 
-@keyframes shimmer {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
-}
-
 @keyframes float {
   0%,
   100% {
@@ -156,13 +147,6 @@ progress::-moz-progress-bar {
 }
 .page-enter > * > *:nth-child(n + 4) {
   animation-delay: 180ms;
-}
-
-.skeleton {
-  border-radius: 0.75rem;
-  background: linear-gradient(90deg, var(--subtle) 0%, color-mix(in srgb, var(--subtle) 40%, var(--surface)) 50%, var(--subtle) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s linear infinite;
 }
 
 .blob {

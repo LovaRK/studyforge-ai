@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
@@ -13,6 +13,17 @@ const LINKS = [
   { href: "/quiz", label: "Quiz" },
   { href: "/study", label: "Study" },
 ];
+
+/** A pulsing dot on the link being opened, so a slow page never feels unresponsive. */
+function PendingDot() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden="true"
+      className={`absolute right-1 top-1 size-1.5 rounded-full bg-accent transition-opacity ${pending ? "animate-ping opacity-100" : "opacity-0"}`}
+    />
+  );
+}
 
 export function NavLinks() {
   const pathname = usePathname();
@@ -32,9 +43,10 @@ export function NavLinks() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition duration-150 ${active ? "bg-accent/10 font-medium text-accent shadow-[inset_0_0_0_1px] shadow-accent/25" : "text-muted hover:bg-subtle hover:text-foreground"}`}
+            className={`relative whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition duration-150 ${active ? "bg-accent/10 font-medium text-accent shadow-[inset_0_0_0_1px] shadow-accent/25" : "text-muted hover:bg-subtle hover:text-foreground"}`}
           >
             {label}
+            <PendingDot />
           </Link>
         );
       })}
