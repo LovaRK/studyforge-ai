@@ -1,5 +1,5 @@
 import "server-only";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getEnv } from "@/config/env";
 import { clientKeyFromForwardedFor } from "@/infrastructure/auth/client-key";
@@ -34,9 +34,5 @@ export async function clearSessionCookie(): Promise<void> {
 
 /** Key for login rate limiting: the address our proxy saw, which the client can't spoof. */
 export async function clientKey(): Promise<string> {
-  const env = getEnv();
-  return clientKeyFromForwardedFor((await headers()).get("x-forwarded-for"), {
-    trustedProxyHops: env.TRUSTED_PROXY_HOPS,
-    verified: env.TRUSTED_PROXY_HOPS_VERIFIED,
-  });
+  return clientKeyFromForwardedFor();
 }
