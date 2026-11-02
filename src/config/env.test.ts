@@ -21,4 +21,11 @@ describe("parseEnv", () => {
     expect(attempt).toThrow(/SESSION_SECRET/);
     expect(attempt).not.toThrow(/short-secret-value/);
   });
+
+  it("rejects unverified trusted proxy hops", () => {
+    expect(() => parseEnv({ ...base, LLM_PROVIDER: "mock", TRUSTED_PROXY_HOPS: "1" })).toThrow(/TRUSTED_PROXY_HOPS_VERIFIED/);
+    expect(
+      parseEnv({ ...base, LLM_PROVIDER: "mock", TRUSTED_PROXY_HOPS: "1", TRUSTED_PROXY_HOPS_VERIFIED: "true" }).TRUSTED_PROXY_HOPS,
+    ).toBe(1);
+  });
 });

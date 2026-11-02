@@ -15,6 +15,12 @@ export const envSchema = z
     GEMINI_MODEL: z.string().optional(),
     /** Spacing for model calls; 0 disables throttling (the mock provider). */
     LLM_REQUESTS_PER_MINUTE: z.coerce.number().int().min(0).max(1000).optional(),
+    /** Number of proxy hops whose forwarding headers have been independently verified. */
+    TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
+    TRUSTED_PROXY_HOPS_VERIFIED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
   })
   .superRefine((env, ctx) => {
     if (env.LLM_PROVIDER === "gemini") {
@@ -24,6 +30,13 @@ export const envSchema = z
       if (!env.GEMINI_MODEL) {
         ctx.addIssue({ code: "custom", path: ["GEMINI_MODEL"], message: "required when LLM_PROVIDER=gemini" });
       }
+    }
+    if (env.TRUSTED_PROXY_HOPS > 0 && !env.TRUSTED_PROXY_HOPS_VERIFIED) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["TRUSTED_PROXY_HOPS_VERIFIED"],
+        message: "must be true after the deployment proxy behavior has been independently verified",
+      });
     }
   });
 
