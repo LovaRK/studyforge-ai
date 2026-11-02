@@ -2,7 +2,13 @@
 
 A private, source-grounded study guide. Upload your own notes, let an LLM propose concepts, terms, how-tos and questions, then approve each one next to the exact source excerpt it came from before it reaches your library.
 
-> **Status:** upload, extraction, the word-for-word check, the review queue and the searchable library, concept pages, flashcards and focused study sessions work end to end. Quizzes and the dashboard are next.
+> **Status:** the complete private study workflow works end to end: extraction and evidence review, search and concept pages, flashcards, quizzes, focused sessions, understanding dashboard, original demo and JSON backup.
+
+![StudyForge AI understanding dashboard with original demo data](docs/screenshots/dashboard-demo.png)
+
+The review queue keeps the generated study item beside its highlighted evidence:
+
+![StudyForge AI review queue with an original Swift demo note](docs/screenshots/review-demo.png)
 
 ## How it works
 
@@ -14,7 +20,7 @@ A private, source-grounded study guide. Upload your own notes, let an LLM propos
 6. **Find** anything in the library: approved items grouped by type, filtered by tag or source, with Postgres full-text search over titles, tags, the generated wording and the excerpts. Each word may be a prefix ("concur" finds "concurrency"), titles rank above excerpt-only matches, and matches are marked inside the full, untrimmed excerpt. The search document is written in the same transaction as the approval, by one SQL function (`item_search_document`) that the migration also uses to backfill.
 7. **Read** an item on its own page: the generated summary, a question to check yourself (or numbered steps for how-to guides and processes written as a list), every source fact shown in the surrounding text of its own document with an "Open in source" link that highlights the exact span, and related items that share tags or a source.
 8. **Practise** with flashcards made only from approved items, for everything, one tag or one source. The question comes first; the answer is shown with its source facts. Grades follow SM-2 (Again, Hard, Good, Easy; keys 1–4), and each button shows when the card would come back. Again brings a card back after 10 minutes. A second grade of the same showing, from a double click or a second tab, is ignored, so a card is never scheduled twice for one answer.
-9. **Focus** with a timed study session: pick everything, a tag or a source and 5–25 minutes. You get due cards, then new ones, each once, with a countdown, until the time is up, nothing is left, or you finish. The summary counts what you studied and how you graded it, and the reason the session ended is stored with it. Answers are checked against the session under a row lock: once it has ended, passed its deadline, or already covered an item, a late answer from another tab is refused, so a finished summary never changes. Quiz questions join the mix when the quiz lands.
+9. **Focus** with a timed study session: pick everything, a tag or a source and 5–25 minutes. You get due cards, then new ones, each once, with a countdown, until the time is up, nothing is left, or you finish. The summary counts what you studied and how you graded it, and the reason the session ended is stored with it. Answers are checked against the session under a row lock: once it has ended, passed its deadline, or already covered an item, a late answer from another tab is refused, so a finished summary never changes.
 
 ## Understanding dashboard
 

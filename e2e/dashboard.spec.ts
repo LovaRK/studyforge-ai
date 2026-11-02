@@ -11,7 +11,7 @@ test("dashboard explains its measurements and fits a narrow screen in both theme
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await expect(page.getByRole("link", { name: /Study .* due cards/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Study .* due cards?/ })).toBeVisible();
   }
   await page.getByRole("link", { name: "Take a quick quiz" }).click();
   await expect(page.getByRole("heading", { name: "Quick quiz" })).toBeVisible();

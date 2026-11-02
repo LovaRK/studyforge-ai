@@ -57,7 +57,7 @@ export default async function DashboardPage() {
         </p>
         <div className="mt-6 flex flex-wrap gap-2">
           <Link href="/flashcards" className={buttonClass.primary}>
-            Study {d.due} due cards
+            Study {d.due} due {d.due === 1 ? "card" : "cards"}
           </Link>
           <Link href="/quiz" className={buttonClass.secondary}>
             Take a quick quiz
@@ -74,9 +74,13 @@ export default async function DashboardPage() {
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           ["Approved ideas", d.approved, `${d.established} established`],
-          ["Due now", d.due, `${d.newCards} new cards included`],
-          ["Study streak", `${d.streak} days`, "Calendar days · UTC"],
-          ["Quiz accuracy", d.accuracy === null ? "—" : `${d.accuracy}%`, `${d.quizAnswers} recorded answers`],
+          ["Due now", d.due, `${d.newCards} new ${d.newCards === 1 ? "card" : "cards"} included`],
+          ["Study streak", `${d.streak} ${d.streak === 1 ? "day" : "days"}`, "Calendar days · UTC"],
+          [
+            "Quiz accuracy",
+            d.accuracy === null ? "—" : `${d.accuracy}%`,
+            `${d.quizAnswers} recorded ${d.quizAnswers === 1 ? "answer" : "answers"}`,
+          ],
         ].map(([label, value, note]) => (
           <div key={label} className="rounded-2xl border border-line bg-surface p-5">
             <dt className="text-sm text-muted">{label}</dt>
