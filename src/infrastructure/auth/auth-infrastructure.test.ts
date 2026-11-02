@@ -72,27 +72,13 @@ describe("MemoryLoginRateLimiter", () => {
 });
 
 describe("clientKeyFromForwardedFor", () => {
-  it("uses the address appended by our proxy, not one the client sent", () => {
-    const options = { trustedProxyHops: 1, verified: true };
-    expect(clientKeyFromForwardedFor("203.0.113.7, 10.0.0.1", options)).toBe("global");
-    expect(clientKeyFromForwardedFor(" 9.9.9.9 ,  10.0.0.1 ", options)).toBe("global");
-  });
-
-  it("falls back to one local bucket without a usable header", () => {
-    expect(clientKeyFromForwardedFor(null)).toBe("global");
-    expect(clientKeyFromForwardedFor("", { trustedProxyHops: 1, verified: true })).toBe("global");
-    expect(clientKeyFromForwardedFor("1.2.3.4, ", { trustedProxyHops: 1, verified: true })).toBe("global");
+  it("always uses one global bucket because forwarding headers are untrusted", () => {
+    expect(clientKeyFromForwardedFor()).toBe("global");
   });
 
   it("keeps a spoofing client in one bucket however it rotates the header", () => {
     const limiter = new MemoryLoginRateLimiter({ maxFailures: 2, windowSeconds: 60 });
-    for (const spoofed of ["10.0.0.1", "10.0.0.2", "10.0.0.3"])
-      limiter.tryAcquire(clientKeyFromForwardedFor(`${spoofed}, 203.0.113.7`), NOW);
-    expect(limiter.tryAcquire(clientKeyFromForwardedFor("10.0.0.4, 203.0.113.7"), NOW).allowed).toBe(false);
-  });
-
-  it("does not trust forwarding headers until proxy behavior is verified", () => {
-    expect(clientKeyFromForwardedFor("10.0.0.1, 203.0.113.7")).toBe("global");
-    expect(clientKeyFromForwardedFor("10.0.0.1, 203.0.113.7", { trustedProxyHops: 2, verified: true })).toBe("global");
+    for (let attempt = 0; attempt < 3; attempt++) limiter.tryAcquire(clientKeyFromForwardedFor(), NOW);
+    expect(limiter.tryAcquire(clientKeyFromForwardedFor(), NOW).allowed).toBe(false);
   });
 });
