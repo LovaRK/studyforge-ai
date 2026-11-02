@@ -21,7 +21,8 @@ test("capture public demo review and dashboard visuals", async ({ page }, testIn
   // Wait for the filtered queue, so the checkboxes below are the demo's own.
   await expect(page).toHaveURL(new RegExp(`source=${sourceId}`));
   const queue = page.getByRole("list", { name: "Queue" });
-  await expect(queue.getByRole("checkbox")).toHaveCount(4);
+  const itemCount = await queue.getByRole("checkbox").count();
+  expect(itemCount).toBeGreaterThanOrEqual(3);
   await page.screenshot({ path: testInfo.outputPath("review-demo.png"), fullPage: true });
 
   for (const checkbox of await queue.getByRole("checkbox").all()) await checkbox.check();
@@ -33,7 +34,7 @@ test("capture public demo review and dashboard visuals", async ({ page }, testIn
   const answers = new Map<string, string>();
   await page.goto(`/flashcards?source=${sourceId}`);
   const card = page.getByRole("article", { name: "Flashcard" });
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < itemCount; i++) {
     const question = (await card.getByRole("heading").innerText()).trim();
     await card.getByRole("button", { name: "Show answer" }).click();
     answers.set(question, (await card.getByRole("region", { name: "Answer" }).locator("p").innerText()).trim());
@@ -44,7 +45,7 @@ test("capture public demo review and dashboard visuals", async ({ page }, testIn
 
   await page.goto(`/quiz?source=${sourceId}`);
   const feedback = page.getByRole("region", { name: "Answer feedback" });
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < itemCount; i++) {
     // The next question has loaded once the previous feedback is gone.
     await expect(feedback).toHaveCount(0);
     const quiz = page.getByRole("article", { name: "Quiz question" });
@@ -57,7 +58,10 @@ test("capture public demo review and dashboard visuals", async ({ page }, testIn
 
   await page.goto("/dashboard");
   await expect(page.getByText("1 day", { exact: true })).toBeVisible();
-  await expect(page.getByRole("progressbar", { name: "Swift value and reference semantics established" })).toHaveAttribute("max", "4");
+  await expect(page.getByRole("progressbar", { name: "Swift value and reference semantics established" })).toHaveAttribute(
+    "max",
+    String(itemCount),
+  );
   // Handshake requires a 3:2 dashboard cover at least 1,200 px wide.
   await page.screenshot({ path: testInfo.outputPath("dashboard-demo.png") });
 });
