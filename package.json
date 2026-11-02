@@ -16,6 +16,7 @@
     "db:down": "node --env-file=.env.local scripts/db.mjs down",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
+    "seed:demo": "node --conditions=react-server --import tsx scripts/seed-demo.ts",
     "test:int": "vitest run --project integration",
     "format:check": "prettier --check ."
   },
