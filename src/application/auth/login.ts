@@ -20,12 +20,11 @@ export function makeLogin(deps: LoginDeps) {
 
   return async function login(input: { password: string; clientKey: string }): Promise<LoginResult> {
     const at = now();
-    const decision = deps.limiter.check(input.clientKey, at);
+    const decision = deps.limiter.tryAcquire(input.clientKey, at);
     if (!decision.allowed) return { ok: false, reason: "rate_limited", retryAfterSeconds: decision.retryAfterSeconds };
 
     const hash = (await deps.store.getHash()) ?? (await ensureOwnerCredential(deps));
     if (!(await deps.hasher.verify(input.password, hash))) {
-      deps.limiter.recordFailure(input.clientKey, at);
       return { ok: false, reason: "invalid_credentials" };
     }
 

@@ -48,6 +48,30 @@ describe("login", () => {
     expect(blocked).toMatchObject({ ok: false, reason: "rate_limited" });
     expect((await login({ password: "correct horse", clientKey: "owner" })).ok).toBe(true);
   });
+
+  it("atomically caps simultaneous password checks", async () => {
+    let verifies = 0;
+    const store = new InMemoryOwnerCredentialStore("plain:correct horse");
+    const login = makeLogin({
+      store,
+      hasher: {
+        hash: async (password) => `plain:${password}`,
+        verify: async () => {
+          verifies += 1;
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          return false;
+        },
+      },
+      sessions: new HmacSessionIssuer(SECRET),
+      limiter: new MemoryLoginRateLimiter({ maxFailures: 3, windowSeconds: 60 }),
+      ownerPassword: "correct horse",
+      now: () => NOW,
+    });
+
+    const results = await Promise.all(Array.from({ length: 10 }, () => login({ password: "nope", clientKey: "attacker" })));
+    expect(verifies).toBe(3);
+    expect(results.filter((result) => result.ok === false && result.reason === "rate_limited")).toHaveLength(7);
+  });
 });
 
 describe("ensureOwnerCredential", () => {

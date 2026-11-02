@@ -57,38 +57,42 @@ describe("session tokens", () => {
 describe("MemoryLoginRateLimiter", () => {
   it("blocks after the limit and reopens when the window passes", () => {
     const limiter = new MemoryLoginRateLimiter({ maxFailures: 2, windowSeconds: 60 });
-    limiter.recordFailure("ip", NOW);
-    expect(limiter.check("ip", NOW).allowed).toBe(true);
-    limiter.recordFailure("ip", NOW);
-    expect(limiter.check("ip", NOW)).toEqual({ allowed: false, retryAfterSeconds: 60 });
-    expect(limiter.check("ip", new Date(NOW.getTime() + 60_000)).allowed).toBe(true);
+    expect(limiter.tryAcquire("ip", NOW).allowed).toBe(true);
+    expect(limiter.tryAcquire("ip", NOW).allowed).toBe(true);
+    expect(limiter.tryAcquire("ip", NOW)).toEqual({ allowed: false, retryAfterSeconds: 60 });
+    expect(limiter.tryAcquire("ip", new Date(NOW.getTime() + 60_000)).allowed).toBe(true);
   });
 
   it("clears failures after a successful login", () => {
     const limiter = new MemoryLoginRateLimiter({ maxFailures: 1, windowSeconds: 60 });
-    limiter.recordFailure("ip", NOW);
+    limiter.tryAcquire("ip", NOW);
     limiter.reset("ip");
-    expect(limiter.check("ip", NOW).allowed).toBe(true);
+    expect(limiter.tryAcquire("ip", NOW).allowed).toBe(true);
   });
 });
 
 describe("clientKeyFromForwardedFor", () => {
   it("uses the address appended by our proxy, not one the client sent", () => {
-    expect(clientKeyFromForwardedFor("203.0.113.7")).toBe("203.0.113.7");
-    expect(clientKeyFromForwardedFor("1.2.3.4, 203.0.113.7")).toBe("203.0.113.7");
-    expect(clientKeyFromForwardedFor(" 9.9.9.9 ,  203.0.113.7 ")).toBe("203.0.113.7");
+    const options = { trustedProxyHops: 1, verified: true };
+    expect(clientKeyFromForwardedFor("203.0.113.7, 10.0.0.1", options)).toBe("203.0.113.7");
+    expect(clientKeyFromForwardedFor(" 9.9.9.9 ,  10.0.0.1 ", options)).toBe("9.9.9.9");
   });
 
   it("falls back to one local bucket without a usable header", () => {
-    expect(clientKeyFromForwardedFor(null)).toBe("local");
-    expect(clientKeyFromForwardedFor("")).toBe("local");
-    expect(clientKeyFromForwardedFor("1.2.3.4, ")).toBe("local");
+    expect(clientKeyFromForwardedFor(null)).toBe("global");
+    expect(clientKeyFromForwardedFor("", { trustedProxyHops: 1, verified: true })).toBe("global");
+    expect(clientKeyFromForwardedFor("1.2.3.4, ", { trustedProxyHops: 1, verified: true })).toBe("global");
   });
 
   it("keeps a spoofing client in one bucket however it rotates the header", () => {
     const limiter = new MemoryLoginRateLimiter({ maxFailures: 2, windowSeconds: 60 });
     for (const spoofed of ["10.0.0.1", "10.0.0.2", "10.0.0.3"])
-      limiter.recordFailure(clientKeyFromForwardedFor(`${spoofed}, 203.0.113.7`), NOW);
-    expect(limiter.check(clientKeyFromForwardedFor("10.0.0.4, 203.0.113.7"), NOW).allowed).toBe(false);
+      limiter.tryAcquire(clientKeyFromForwardedFor(`${spoofed}, 203.0.113.7`), NOW);
+    expect(limiter.tryAcquire(clientKeyFromForwardedFor("10.0.0.4, 203.0.113.7"), NOW).allowed).toBe(false);
+  });
+
+  it("does not trust forwarding headers until proxy behavior is verified", () => {
+    expect(clientKeyFromForwardedFor("10.0.0.1, 203.0.113.7")).toBe("global");
+    expect(clientKeyFromForwardedFor("10.0.0.1, 203.0.113.7", { trustedProxyHops: 2, verified: true })).toBe("global");
   });
 });

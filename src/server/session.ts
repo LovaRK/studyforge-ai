@@ -34,5 +34,9 @@ export async function clearSessionCookie(): Promise<void> {
 
 /** Key for login rate limiting: the address our proxy saw, which the client can't spoof. */
 export async function clientKey(): Promise<string> {
-  return clientKeyFromForwardedFor((await headers()).get("x-forwarded-for"));
+  const env = getEnv();
+  return clientKeyFromForwardedFor((await headers()).get("x-forwarded-for"), {
+    trustedProxyHops: env.TRUSTED_PROXY_HOPS,
+    verified: env.TRUSTED_PROXY_HOPS_VERIFIED,
+  });
 }

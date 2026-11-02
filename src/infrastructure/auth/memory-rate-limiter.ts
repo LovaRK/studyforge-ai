@@ -9,17 +9,23 @@ export class MemoryLoginRateLimiter implements LoginRateLimiter {
 
   constructor(private readonly options: { maxFailures: number; windowSeconds: number } = { maxFailures: 5, windowSeconds: 15 * 60 }) {}
 
+  tryAcquire(clientKey: string, now: Date): RateLimitDecision {
+    const entry = this.current(clientKey, now) ?? { count: 0, windowStart: now.getTime() };
+    if (entry.count >= this.options.maxFailures) {
+      const retryAfterMs = entry.windowStart + this.options.windowSeconds * 1000 - now.getTime();
+      return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)) };
+    }
+    entry.count += 1;
+    this.failures.set(clientKey, entry);
+    return { allowed: true };
+  }
+
+  /** @deprecated Use tryAcquire so the limit is enforced before async password work. */
   check(clientKey: string, now: Date): RateLimitDecision {
     const entry = this.current(clientKey, now);
     if (!entry || entry.count < this.options.maxFailures) return { allowed: true };
     const retryAfterMs = entry.windowStart + this.options.windowSeconds * 1000 - now.getTime();
     return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)) };
-  }
-
-  recordFailure(clientKey: string, now: Date): void {
-    const entry = this.current(clientKey, now) ?? { count: 0, windowStart: now.getTime() };
-    entry.count += 1;
-    this.failures.set(clientKey, entry);
   }
 
   reset(clientKey: string): void {

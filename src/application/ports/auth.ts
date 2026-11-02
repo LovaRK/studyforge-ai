@@ -16,7 +16,7 @@ export interface SessionIssuer {
 export type RateLimitDecision = { allowed: true } | { allowed: false; retryAfterSeconds: number };
 
 export interface LoginRateLimiter {
-  check(clientKey: string, now: Date): RateLimitDecision;
-  recordFailure(clientKey: string, now: Date): void;
+  /** Atomically reserves one login attempt before password verification begins. */
+  tryAcquire(clientKey: string, now: Date): RateLimitDecision;
   reset(clientKey: string): void;
 }
