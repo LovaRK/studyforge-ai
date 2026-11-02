@@ -5,6 +5,6 @@ const GLOBAL_KEY = "global";
  * them can contain client input. Until the server exposes authenticated proxy metadata,
  * use one safe bucket rather than turning a client-supplied address into a key.
  */
-export function clientKeyFromForwardedFor(): string {
+export function globalLoginRateLimitKey(): string {
   return GLOBAL_KEY;
 }
