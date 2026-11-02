@@ -99,6 +99,10 @@ CI runs lint, typecheck, unit tests, integration tests, a production build and t
 | `GEMINI_MODEL`            | A Flash / Flash-Lite model, e.g. `gemini-3.5-flash-lite`        |
 | `LLM_REQUESTS_PER_MINUTE` | Optional. Spacing for model calls (default 10; 0 with the mock) |
 
+## Deploy
+
+The checked-in `.replit` uses Node 22, installs from the lockfile, builds Next.js, applies migrations and starts on port 3000. Publish it as a **Reserved VM**, not Autoscale, because extraction runs in the background after the upload request returns. The owner-facing [Replit deployment guide](docs/DEPLOY.md) covers production database setup, secrets, privacy, persistence, backup and rollback checks. Deployment and secret entry remain owner actions.
+
 ## License
 
 [MIT](LICENSE)
