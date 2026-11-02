@@ -75,6 +75,71 @@ describe("study sessions", () => {
     const { api } = setup({ cardsLeft: true });
     for (const bad of [0, 121, 1.5]) await expect(api.start({ scope: "all" }, bad)).rejects.toThrow(StudySessionError);
     await expect(api.start({ scope: "source" }, 10)).rejects.toThrow("Choose a tag or a source.");
+    // Tags the quiz would refuse would make every quiz step of the session fail.
+    for (const value of ["   ", "x".repeat(41)])
+      await expect(api.start({ scope: "tag", value }, 10)).rejects.toThrow("Choose a tag or a source.");
+    await expect(api.start({ scope: "source", value: "not-a-uuid" }, 10)).rejects.toThrow("Choose a tag or a source.");
     await expect(api.next("missing")).rejects.toThrow(StudySessionError);
+  });
+
+  const question = { id: "q1", itemId: "i2", prompt: "P?", options: [] };
+  function mixed() {
+    const state = { reviewed: 0, card: { ...card, isNew: true } as FlashcardView | null, questions: true };
+    const quizCalls: string[][] = [];
+    const api = makeStudySessions({
+      store: {
+        start: async () => "s1",
+        get: async () => ({
+          id: "s1",
+          scope: "all",
+          scopeValue: null,
+          plannedMinutes: 30,
+          startedAt: START,
+          endedAt: null,
+          endReason: null,
+        }),
+        end: async () => null,
+        activity: async () => ({
+          cards: { again: 0, hard: 0, good: state.reviewed, easy: 0 },
+          quiz: { answered: 0, correct: 0 },
+          seenItemIds: ["seen"],
+        }),
+      },
+      flashcards: { next: async () => ({ card: state.card, counts: { due: 0, new: 0, reviewedSince: 0, nextDueAt: null } }) },
+      quiz: {
+        async nextQuestion(_scope, exclude = []) {
+          quizCalls.push(exclude);
+          return state.questions ? question : null;
+        },
+      },
+      now: () => START,
+    });
+    return { api, state, quizCalls };
+  }
+
+  it("alternates new cards and quiz questions, and lets either continue when the other runs out", async () => {
+    const { api, state, quizCalls } = mixed();
+    expect((await api.next("s1")).kind).toBe("card");
+    state.reviewed = 1;
+    expect(await api.next("s1")).toMatchObject({ kind: "quiz", question });
+    expect(quizCalls.at(-1)).toEqual(["seen", "i1"]);
+    state.questions = false;
+    expect((await api.next("s1")).kind).toBe("card");
+    state.reviewed = 2;
+    state.card = null;
+    state.questions = true;
+    expect((await api.next("s1")).kind).toBe("quiz");
+    state.questions = false;
+    expect(await api.next("s1")).toMatchObject({ kind: "done", reason: "empty" });
+  });
+
+  it("shows every due card before a quiz question can use up its item", async () => {
+    const { api, state, quizCalls } = mixed();
+    state.card = { ...card, isNew: false };
+    for (const reviewed of [0, 1, 2, 3]) {
+      state.reviewed = reviewed;
+      expect((await api.next("s1")).kind).toBe("card");
+    }
+    expect(quizCalls).toEqual([]);
   });
 });

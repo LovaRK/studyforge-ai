@@ -2,6 +2,7 @@ import type { Flashcards, FlashcardView } from "@/application/flashcards/flashca
 import type { StudyScope } from "@/application/ports/flashcards";
 import type { SessionActivity, StudySessionRecord, StudySessionStore } from "@/application/ports/study-session";
 import { UserFacingError } from "@/application/errors";
+import { quizScopeSchema, type Quiz, type QuizQuestionView } from "@/application/quiz/quiz";
 
 export const SESSION_MINUTES = { min: 1, max: 120 } as const;
 
@@ -20,23 +21,25 @@ export interface SessionSummary {
 
 export type SessionStep =
   | { kind: "card"; card: FlashcardView; endsAt: Date; summary: SessionSummary }
+  | { kind: "quiz"; question: QuizQuestionView; endsAt: Date; summary: SessionSummary }
   | { kind: "done"; reason: "time" | "finished" | "empty"; summary: SessionSummary };
 
 interface Deps {
   store: StudySessionStore;
   flashcards: Pick<Flashcards, "next">;
+  /** Without a quiz, sessions are cards only. */
+  quiz?: Pick<Quiz, "nextQuestion">;
   now?: () => Date;
 }
 
 /**
- * A focused, time-boxed run over everything, one tag or one source. Each step
- * serves the next due or new card not yet seen in this session; the session ends
- * when its time is up, when nothing is left, or when the owner finishes it.
- *
- * Quiz questions (track B's `makeQuiz`) join the mix through the same `next`
- * step once they exist; the summary already counts quiz attempts by session.
+ * A focused, time-boxed run over everything, one tag or one source. Due flashcards
+ * come first, so a quiz question never uses up an item whose review is due; then new
+ * flashcards alternate with quiz questions. Each step is about an item not yet studied
+ * in this session, and when one kind runs out the other continues. The session ends when its time is up, when nothing is left, or when
+ * the owner finishes it.
  */
-export function makeStudySessions({ store, flashcards, now = () => new Date() }: Deps) {
+export function makeStudySessions({ store, flashcards, quiz, now = () => new Date() }: Deps) {
   async function summarize(session: StudySessionRecord): Promise<SessionSummary> {
     const activity = await store.activity(session.id);
     const reviewed = Object.values(activity.cards).reduce((a, b) => a + b, 0) + activity.quiz.answered;
@@ -54,8 +57,16 @@ export function makeStudySessions({ store, flashcards, now = () => new Date() }:
       if (!Number.isInteger(plannedMinutes) || plannedMinutes < SESSION_MINUTES.min || plannedMinutes > SESSION_MINUTES.max) {
         throw new StudySessionError(`Choose between ${SESSION_MINUTES.min} and ${SESSION_MINUTES.max} minutes.`);
       }
-      if (scope.scope !== "all" && !scope.value) throw new StudySessionError("Choose a tag or a source.");
-      return store.start({ scope: scope.scope, scopeValue: scope.scope === "all" ? null : scope.value!, plannedMinutes, startedAt: now() });
+      // The same rules the quiz applies, so every session it starts can show questions.
+      const valid = quizScopeSchema.safeParse(scope);
+      if (!valid.success) throw new StudySessionError("Choose a tag or a source.");
+      const checked = valid.data;
+      return store.start({
+        scope: checked.scope,
+        scopeValue: checked.scope === "all" ? null : checked.value,
+        plannedMinutes,
+        startedAt: now(),
+      });
     },
 
     async next(id: string): Promise<SessionStep> {
@@ -75,7 +86,13 @@ export function makeStudySessions({ store, flashcards, now = () => new Date() }:
 
       const scope: StudyScope =
         session.scope === "all" ? { scope: "all" } : { scope: session.scope, value: session.scopeValue ?? undefined };
-      const { card } = await flashcards.next(scope, summary.activity.seenItemIds);
+      const seen = summary.activity.seenItemIds;
+      const { card } = await flashcards.next(scope, seen);
+      // A due card always comes first; after that, odd steps (or no card left) try a question.
+      if (card && (!card.isNew || summary.reviewed % 2 === 0)) return { kind: "card", card, endsAt, summary };
+      // Keep a waiting new card from being consumed by the alternating quiz step.
+      const question = quiz ? await quiz.nextQuestion(scope, card ? [...seen, card.itemId] : seen) : null;
+      if (question) return { kind: "quiz", question, endsAt, summary };
       return card ? { kind: "card", card, endsAt, summary } : done("empty");
     },
 

@@ -1,11 +1,13 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { FlashcardError, makeFlashcards } from "@/application/flashcards/flashcards";
+import { makeQuiz } from "@/application/quiz/quiz";
 import { makeReview } from "@/application/review/review";
 import { makeStudySessions, StudySessionError } from "@/application/study-session/study-session";
 import { cardReviews, quizAttempts, quizQuestions, studySessions } from "@/infrastructure/db/schema";
 import { connect, truncateAll } from "@/test/integration/database";
 import { makeIngest, MEMORY_NOTE, pick, QUEUES_NOTE } from "@/test/integration/study";
+import { DrizzleQuizStore } from "./drizzle-quiz-store";
 import { DrizzleReviewStore } from "./drizzle-review-store";
 import { DrizzleSrsStore } from "./drizzle-srs-store";
 import { DrizzleStudySessionStore } from "./drizzle-study-session-store";
@@ -200,5 +202,77 @@ describe("study sessions on Postgres", () => {
       .from(studySessions)
       .where(and(eq(studySessions.id, id), isNotNull(studySessions.endReason)));
     expect(ended).toHaveLength(1);
+  });
+
+  it("mixes cards and quiz questions, each item once, and counts both in the summary", async () => {
+    // The quiz store checks deadlines against the real clock, so this session starts now.
+    clock = new Date();
+    const quiz = makeQuiz({ store: new DrizzleQuizStore(db), random: () => 0 });
+    const mixed = makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards, quiz, now });
+    const { memory } = await approveAll();
+    const id = await mixed.start({ scope: "source", value: memory.source.id }, 30);
+
+    const studied: string[] = [];
+    const kinds: string[] = [];
+    for (;;) {
+      const step = await mixed.next(id);
+      if (step.kind === "done") {
+        expect(step).toMatchObject({ reason: "empty", summary: { reviewed: 3, activity: { quiz: { answered: 1 } } } });
+        break;
+      }
+      kinds.push(step.kind);
+      if (step.kind === "card") {
+        studied.push(step.card.itemId);
+        await flashcards.grade({ itemId: step.card.itemId, grade: "good", version: step.card.version, sessionId: id });
+      } else {
+        studied.push(step.question.itemId);
+        await quiz.answer(step.question.id, 0, id);
+      }
+    }
+    expect(kinds).toEqual(["card", "quiz", "card"]);
+    expect(new Set(studied)).toEqual(new Set(memory.items.map((item) => item.id)));
+  });
+
+  it("reviews every due card before a quiz question can use up its item", async () => {
+    const quiz = makeQuiz({ store: new DrizzleQuizStore(db), random: () => 0 });
+    const mixed = makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards, quiz, now });
+    const { memory } = await approveAll();
+    const scope = { scope: "source" as const, value: memory.source.id };
+    // Study the whole source half an hour ago with Again, so every card is due now.
+    clock = new Date(Date.now() - 30 * 60_000);
+    for (let i = 0; i < memory.items.length; i++) {
+      const { card } = await flashcards.next(scope);
+      await flashcards.grade({ itemId: card!.itemId, grade: "again", version: card!.version });
+    }
+
+    clock = new Date();
+    const id = await mixed.start(scope, 30);
+    const kinds: string[] = [];
+    for (let step = await mixed.next(id); step.kind !== "done"; step = await mixed.next(id)) {
+      kinds.push(step.kind);
+      if (step.kind === "card")
+        await flashcards.grade({ itemId: step.card.itemId, grade: "good", version: step.card.version, sessionId: id });
+      else await quiz.answer(step.question.id, 0, id);
+    }
+    expect(kinds).toEqual(memory.items.map(() => "card"));
+  });
+
+  it("records an item once when two tabs show it as a question", async () => {
+    clock = new Date();
+    const quiz = makeQuiz({ store: new DrizzleQuizStore(db), random: () => 0 });
+    const mixed = makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards, quiz, now });
+    const { memory } = await approveAll();
+    const id = await mixed.start({ scope: "source", value: memory.source.id }, 30);
+    const first = await mixed.next(id);
+    if (first.kind !== "card") throw new Error("expected a card first");
+    await flashcards.grade({ itemId: first.card.itemId, grade: "good", version: first.card.version, sessionId: id });
+
+    const [tabA, tabB] = [await mixed.next(id), await mixed.next(id)];
+    if (tabA.kind !== "quiz" || tabB.kind !== "quiz") throw new Error("expected two quiz steps");
+    expect(tabA.question.itemId).toBe(tabB.question.itemId);
+    const results = await Promise.allSettled([quiz.answer(tabA.question.id, 0, id), quiz.answer(tabB.question.id, 0, id)]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(results.find((r) => r.status === "rejected")).toMatchObject({ reason: { message: expect.stringContaining("already studied") } });
+    expect(await db.select().from(quizAttempts).where(eq(quizAttempts.sessionId, id))).toHaveLength(1);
   });
 });

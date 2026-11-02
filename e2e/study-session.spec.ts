@@ -42,23 +42,59 @@ test("a focused study session over one source: timed, each card once, with a sum
   await expect(other.getByRole("heading", { name: "Session finished" })).toBeVisible();
   await other.close();
 
-  // The first tab's late answer is refused and it shows the unchanged summary.
-  await page.getByRole("button", { name: "Show answer" }).click();
-  await page.getByRole("button", { name: /^Good/ }).click();
+  // The first tab's late answer (now a quiz question) is refused, and Continue shows the unchanged summary.
+  const answers = page.getByRole("group", { name: "Answers" });
+  await answers.getByRole("button").first().click();
+  await expect(page.getByRole("alert").filter({ hasText: "session has ended" })).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByRole("heading", { name: "Session finished" })).toBeVisible();
   await expect(page.getByLabel("Session summary")).toContainText("Studied1");
   await expect(page.getByLabel("Session summary")).toContainText("Good1");
 
-  // A second session shows only the two cards not yet studied, then ends by itself.
+  // A late flashcard grade is refused the same way.
   await page.getByRole("link", { name: "Start another session" }).click();
   await page.getByLabel("What to study").selectOption({ label: "error-handling" });
   await page.getByRole("button", { name: "Start session" }).click();
-  for (const done of [0, 1]) {
-    await expect(progress).toHaveText(`Source: error-handling · ${done} done`);
-    await page.getByRole("button", { name: "Show answer" }).click();
-    await page.getByRole("button", { name: /^Easy/ }).click();
+  await expect(progress).toHaveText("Source: error-handling · 0 done");
+  const cardTab = await page.context().newPage();
+  await cardTab.goto(page.url());
+  await cardTab.getByRole("button", { name: "Finish" }).click();
+  await expect(cardTab.getByRole("heading", { name: "Session finished" })).toBeVisible();
+  await cardTab.close();
+  await page.getByRole("button", { name: "Show answer" }).click();
+  await page.getByRole("button", { name: /^Good/ }).click();
+  await expect(page.getByRole("heading", { name: "Session finished" })).toBeVisible();
+  await expect(page.getByLabel("Session summary")).toContainText("Studied0");
+
+  // A third session alternates new cards and quiz questions until nothing is left.
+  await page.getByRole("link", { name: "Start another session" }).click();
+  await page.getByLabel("What to study").selectOption({ label: "error-handling" });
+  await page.getByRole("button", { name: "Start session" }).click();
+  const kinds: string[] = [];
+  let correct = 0;
+  const nothingLeft = page.getByRole("heading", { name: "Nothing left to study here" });
+  for (let done = 0; done < 4; done++) {
+    // Wait for this step's page: the next progress count, or the summary once nothing is left.
+    await expect(progress.filter({ hasText: ` ${done} done` }).or(nothingLeft)).toBeVisible();
+    if (await nothingLeft.isVisible()) break;
+    if (await answers.isVisible()) {
+      kinds.push("quiz");
+      await answers.getByRole("button").first().click();
+      // Feedback shows the source fact before moving on.
+      const feedback = page.getByRole("region", { name: "Answer feedback" });
+      await expect(feedback.getByText("Source fact", { exact: true })).toBeVisible();
+      if ((await feedback.getByRole("status").innerText()) === "Correct") correct++;
+      await page.getByRole("button", { name: "Next question" }).click();
+    } else {
+      kinds.push("card");
+      await page.getByRole("button", { name: "Show answer" }).click();
+      await page.getByRole("button", { name: /^Easy/ }).click();
+    }
   }
-  await expect(page.getByRole("heading", { name: "Nothing left to study here" })).toBeVisible();
-  await expect(page.getByLabel("Session summary")).toContainText("Studied2");
-  await expect(page.getByLabel("Session summary")).toContainText("Easy2");
+  await expect(nothingLeft).toBeVisible();
+  expect(kinds.slice(0, 2)).toEqual(["card", "quiz"]);
+  const summary = page.getByLabel("Session summary");
+  await expect(summary).toContainText(`Studied${kinds.length}`);
+  await expect(summary).toContainText(`Quiz correct${correct}/${kinds.filter((k) => k === "quiz").length}`);
+  await expect(summary).toContainText(`Easy${kinds.filter((k) => k === "card").length}`);
 });

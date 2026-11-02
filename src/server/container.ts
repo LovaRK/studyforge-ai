@@ -48,6 +48,7 @@ function build() {
   const reviewStore = new DrizzleReviewStore(db);
   const libraryStore = new DrizzleLibraryStore(db);
   const flashcards = makeFlashcards({ store: new DrizzleSrsStore(db), items: reviewStore });
+  const quiz = makeQuiz({ store: new DrizzleQuizStore(db) });
   const demoExtraction = new ExtractionRunner({
     sources,
     store: extraction,
@@ -69,11 +70,11 @@ function build() {
     library: makeLibrary(libraryStore),
     conceptPages: makeConceptPages({ items: reviewStore, sources, library: libraryStore }),
     flashcards,
-    studySessions: makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards }),
+    studySessions: makeStudySessions({ store: new DrizzleStudySessionStore(db), flashcards, quiz }),
     dashboard: makeDashboard(new DrizzleDashboardStore(db)),
     backup: makeBackup(new DrizzleBackupStore(db)),
     demo: makeDemoLoader({ store: new DrizzleDemoStore(db), extraction: demoExtraction, note: DEMO_NOTE }),
-    quiz: makeQuiz({ store: new DrizzleQuizStore(db) }),
+    quiz,
     textExtractor: new DocumentTextExtractor(),
     extractionRunner: new ExtractionRunner({
       sources,

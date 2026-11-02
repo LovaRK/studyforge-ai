@@ -1,4 +1,4 @@
-import { and, arrayContains, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, arrayContains, asc, eq, inArray, lt, notExists, sql } from "drizzle-orm";
 import { z } from "zod";
 import { QuizError, type QuizAnswer, type QuizScope, type QuizStore, type StoredQuestion } from "@/application/ports/quiz";
 import type { Database } from "@/infrastructure/db/client";
@@ -30,13 +30,27 @@ export class DrizzleQuizStore implements QuizStore {
   async save(question: Omit<StoredQuestion, "id">): Promise<StoredQuestion> {
     const options = optionsSchema.parse(question.options);
     return this.db.transaction(async (tx) => {
-      // Expire abandoned showings without sharing or invalidating a recent
-      // question that may still be open in another tab or study session.
-      await tx.execute(sql`
-        delete from ${quizQuestions} q
-        where q.item_id = ${question.itemId}
-          and q.created_at < now() - interval '1 day'
-          and not exists (select 1 from ${quizAttempts} a where a.question_id = q.id)`);
+      // Expire abandoned showings of any item, so reloads never pile up rows, without
+      // sharing or invalidating a recent question that may still be open in another tab
+      // or study session. Lock first, skipping a question being answered right now, then
+      // re-check in this statement's fresh snapshot, so a just-committed answer is never
+      // deleted along with its question.
+      const unanswered = notExists(tx.select().from(quizAttempts).where(eq(quizAttempts.questionId, quizQuestions.id)));
+      const stale = await tx
+        .select({ id: quizQuestions.id })
+        .from(quizQuestions)
+        .where(and(lt(quizQuestions.createdAt, sql`now() - interval '1 day'`), unanswered))
+        .for("update", { skipLocked: true });
+      if (stale.length > 0)
+        await tx.delete(quizQuestions).where(
+          and(
+            inArray(
+              quizQuestions.id,
+              stale.map((q) => q.id),
+            ),
+            unanswered,
+          ),
+        );
       const [row] = await tx
         .insert(quizQuestions)
         .values({ ...question, options })
