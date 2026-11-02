@@ -8,7 +8,8 @@ test.describe.configure({ retries: 0 });
 test("capture public demo review and dashboard visuals", async ({ page }, testInfo) => {
   test.slow();
   await page.setViewportSize({ width: 1200, height: 800 });
-  await page.emulateMedia({ colorScheme: "light" });
+  // Reduced motion: capture the settled page, not its entrance animation.
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await signIn(page);
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "Load original demo note" }).click();
