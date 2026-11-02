@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clientKeyFromForwardedFor } from "./client-key";
+import { globalLoginRateLimitKey } from "./client-key";
 import { MemoryLoginRateLimiter } from "./memory-rate-limiter";
 import { ScryptPasswordHasher } from "./scrypt-password-hasher";
 import { createSessionToken, verifySessionToken } from "./session-token";
@@ -71,14 +71,14 @@ describe("MemoryLoginRateLimiter", () => {
   });
 });
 
-describe("clientKeyFromForwardedFor", () => {
+describe("globalLoginRateLimitKey", () => {
   it("always uses one global bucket because forwarding headers are untrusted", () => {
-    expect(clientKeyFromForwardedFor()).toBe("global");
+    expect(globalLoginRateLimitKey()).toBe("global");
   });
 
-  it("keeps a spoofing client in one bucket however it rotates the header", () => {
+  it("keeps repeated attempts in one bucket", () => {
     const limiter = new MemoryLoginRateLimiter({ maxFailures: 2, windowSeconds: 60 });
-    for (let attempt = 0; attempt < 3; attempt++) limiter.tryAcquire(clientKeyFromForwardedFor(), NOW);
-    expect(limiter.tryAcquire(clientKeyFromForwardedFor(), NOW).allowed).toBe(false);
+    for (let attempt = 0; attempt < 3; attempt++) limiter.tryAcquire(globalLoginRateLimitKey(), NOW);
+    expect(limiter.tryAcquire(globalLoginRateLimitKey(), NOW).allowed).toBe(false);
   });
 });

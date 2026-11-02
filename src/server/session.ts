@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getEnv } from "@/config/env";
-import { clientKeyFromForwardedFor } from "@/infrastructure/auth/client-key";
+import { globalLoginRateLimitKey } from "@/infrastructure/auth/client-key";
 import { SESSION_COOKIE, verifySessionToken } from "@/infrastructure/auth/session-token";
 
 export async function isSignedIn(): Promise<boolean> {
@@ -32,7 +32,7 @@ export async function clearSessionCookie(): Promise<void> {
   (await cookies()).delete(SESSION_COOKIE);
 }
 
-/** Key for login rate limiting: the address our proxy saw, which the client can't spoof. */
+/** Shared login rate-limit key; forwarding headers are intentionally ignored. */
 export async function clientKey(): Promise<string> {
-  return clientKeyFromForwardedFor();
+  return globalLoginRateLimitKey();
 }
